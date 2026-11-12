@@ -16,10 +16,14 @@ class AccountsController extends Controller
                 || (float)$p->opening_receivable>0 || (float)$p->opening_payable>0;
             return $p;
         });
+        $suppliers=Party::whereIn('type',['supplier','both'])->withCount(['purchases','payments'])->orderBy('name')->get()->map(function($p) use($ledger){
+            $p->balances=$ledger->balances($p); return $p;
+        });
         return view('accounts.index', [
             'parties'=>$parties,
             'receivables'=>$parties->sum(fn ($p)=>max(0,$p->balances['receivable'])),
-            'payables'=>$parties->sum(fn ($p)=>max(0,$p->balances['payable'])),
+            'payables'=>$suppliers->sum(fn ($p)=>max(0,$p->balances['payable'])),
+            'suppliers'=>$suppliers,
             'factories'=>Factory::orderBy('name')->get(),
             'withoutAccounts'=>$parties->where('has_account_activity',false)->count(),
         ]);
@@ -55,6 +59,10 @@ class AccountsController extends Controller
             'kind'=>'required|in:received,paid','paid_on'=>'required|date','amount'=>'required|numeric|gt:0',
             'reference'=>'nullable|string|max:150','notes'=>'nullable|string|max:1000',
         ]);
+        $party=Party::findOrFail($d['party_id']);
+        if (($d['kind']==='received' && $party->type==='supplier') || ($d['kind']==='paid' && $party->type==='customer')) {
+            return back()->withErrors(['kind'=>'Payment type does not match this party account.'])->withInput();
+        }
         DB::transaction(function () use ($d,$ledger) {
             $payment=Payment::create($d);
             AuditService::record('payment.created',$payment,['kind'=>$payment->kind,'amount'=>$payment->amount]);
@@ -63,8 +71,7 @@ class AccountsController extends Controller
             else $ledger->post($payment->party_id,$payment->factory_id,'payable',$payment->paid_on,
                 'Payment paid'.($payment->reference?' — '.$payment->reference:''),'payment',$payment->id,(float)$payment->amount,0);
         });
-        $party=Party::findOrFail($d['party_id']);
-        return redirect($party->type==='supplier'?route('yarn.index'):route('accounts.show',$party))->with('success','Payment recorded and running balance updated.');
+        return redirect(route('accounts.show',$party))->with('success','Payment recorded and running balance updated.');
     }
 
     public function storeParty(Request $request)

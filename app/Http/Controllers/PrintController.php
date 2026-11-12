@@ -1,6 +1,6 @@
 <?php
 namespace App\Http\Controllers;
-use App\Models\{Bill, KachiParchi, YarnPurchase, Party};
+use App\Models\{Bill, KachiParchi, YarnPurchase, Party, Contract};
 use App\Services\LedgerService;
 class PrintController extends Controller
 {
@@ -24,6 +24,15 @@ class PrintController extends Controller
     {
         $purchase->load(['factory','party','contract']);
         return view('print.purchase',['purchase'=>$purchase,'printTitle'=>'Yarn Purchase']);
+    }
+    public function contract(Contract $contract)
+    {
+        $contract->load(['factory','party','quality']);
+        $receipts=$contract->receipts()->orderBy('received_on')->get();
+        $purchases=$contract->yarnPurchases()->with('party')->whereNull('voided_at')->orderBy('purchased_on')->get();
+        $warpReceived=(float)$receipts->where('yarn_type','warp')->sum('bags')+(float)$purchases->where('yarn_type','warp')->sum('bags');
+        $weftReceived=(float)$receipts->where('yarn_type','weft')->sum('bags')+(float)$purchases->where('yarn_type','weft')->sum('bags');
+        return view('print.contract',compact('contract','receipts','purchases','warpReceived','weftReceived')+['printTitle'=>'Contract']);
     }
     public function ledger(Party $party,LedgerService $service)
     {

@@ -42,6 +42,7 @@ Route::get('/print/kachi/{kachi}',[PrintController::class,'kachi'])->name('print
 Route::get('/print/pakki/{kachi}',[PrintController::class,'pakki'])->name('print.pakki');
 Route::get('/print/bill/{bill}',[PrintController::class,'bill'])->name('print.bill');
 Route::get('/print/purchase/{purchase}',[PrintController::class,'purchase'])->name('print.purchase');
+Route::get('/print/contracts/{contract}',[PrintController::class,'contract'])->name('print.contract');
 Route::get('/print/ledger/{party}',[PrintController::class,'ledger'])->name('print.ledger');
 Route::get('/export/ledger/{party}',[ExportController::class,'ledger'])->name('export.ledger');
 Route::get('/export/stock',[ExportController::class,'stock'])->name('export.stock');

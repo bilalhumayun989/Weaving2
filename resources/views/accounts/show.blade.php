@@ -1,0 +1,26 @@
+@extends('layouts.app')
+@section('title','Party Ledger')
+@section('content')
+<div class="page-heading"><div><div class="kicker">Party Account</div><h1>{{ $party->name }}</h1><p class="tagline">Combined activity for the business · Factory shown per applicable transaction</p></div><div class="actions"><a class="btn secondary" href="{{ route('print.ledger',$party) }}" target="_blank">Print Statement</a><a class="btn secondary" href="{{ route('export.ledger',$party) }}">Export CSV</a><a class="btn secondary" href="{{ route('accounts.index') }}">All Accounts</a></div></div>
+<div class="grid"><div class="card metric"><div class="label">Receivable Balance</div><div class="value">Rs {{ number_format($receivable['closing'],2) }}</div><div class="detail">Customer amount outstanding</div></div><div class="card metric"><div class="label">Payable Balance</div><div class="value">Rs {{ number_format($payable['closing'],2) }}</div><div class="detail">Supplier amount outstanding</div></div></div>
+<div class="card"><h2>Record Payment</h2><form method="POST" action="{{ route('accounts.payments.store') }}">@csrf<input type="hidden" name="party_id" value="{{ $party->id }}"><div class="form-grid">
+<div class="field"><label>Payment Type</label><select name="kind"><option value="received">Payment Received from Customer</option><option value="paid">Payment Made to Supplier</option></select></div>
+<div class="field"><label>Payment Date</label><input name="paid_on" type="date" value="{{ date('Y-m-d') }}" required></div>
+<div class="field"><label>Amount (PKR)</label><input name="amount" type="number" min="0.01" step="0.01" required></div>
+<div class="field"><label>Factory (optional)</label><select name="factory_id"><option value="">Combined Business / Not Assigned</option>@foreach($factories as $f)<option value="{{ $f->id }}">{{ $f->name }}</option>@endforeach</select></div>
+<div class="field"><label>Payment Reference</label><input name="reference" placeholder="Cash, transfer ref, receipt no."></div>
+<div class="field"><label>Notes</label><input name="notes"></div>
+</div><div class="input-actions"><button class="btn">Save Payment</button></div></form></div>
+<div class="card"><h2>Recent Payments & Reversals</h2><div class="table-wrap"><table><thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Reference</th><th>Status / Action</th></tr></thead><tbody>
+@forelse($payments as $pay)<tr><td>{{ $pay->paid_on }}</td><td>{{ $pay->kind==='received'?'Received':'Paid' }}</td><td>Rs {{ number_format($pay->amount,2) }}</td><td>{{ $pay->reference ?: '—' }}</td><td>
+@if($pay->voided_at)<span class="pill warn">Reversed {{ $pay->voided_at }}</span><div class="small muted">{{ $pay->void_reason }}</div>
+@elseif(auth()->user()->role==='admin')<form method="POST" action="{{ route('corrections.payment',$pay) }}" onsubmit="return confirm('Reverse this payment? The correction stays in the running ledger.')">@csrf<div class="field"><input name="reason" required minlength="8" placeholder="Reason (min. 8 characters)" style="min-width:190px"></div><button class="btn secondary small" type="submit">Reverse</button></form>
+@else<span class="pill">Posted</span>@endif</td></tr>@empty<tr><td colspan="5">No payments recorded yet.</td></tr>@endforelse</tbody></table></div></div>
+@foreach(['receivable'=>'Customer Receivable Ledger','payable'=>'Supplier Payable Ledger'] as $key=>$heading)
+@php $data = $key === 'receivable' ? $receivable : $payable; @endphp
+<div class="card"><h2>{{ $heading }}</h2><div class="table-wrap"><table><thead><tr><th>Date</th><th>Transaction</th><th>Factory</th><th class="num">Debit</th><th class="num">Credit</th><th class="num">Running Balance</th></tr></thead><tbody>
+<tr><td>—</td><td>Opening Balance</td><td>—</td><td class="num">—</td><td class="num">—</td><td class="num">{{ number_format($data['opening'],2) }}</td></tr>
+@foreach($data['rows'] as $row)<tr><td>{{ $row['entry']->entry_on }}</td><td>{{ $row['entry']->description }}</td><td>{{ $row['entry']->factory?->name ?? 'Combined' }}</td><td class="num">{{ $row['entry']->debit>0?number_format($row['entry']->debit,2):'—' }}</td><td class="num">{{ $row['entry']->credit>0?number_format($row['entry']->credit,2):'—' }}</td><td class="num">{{ number_format($row['balance'],2) }}</td></tr>@endforeach
+</tbody></table></div><div class="inline-note">{{ $key==='receivable'?'Receivables: invoices increase debit; payments received increase credit.':'Payables: supplier purchases increase credit; supplier payments increase debit.' }}</div></div>
+@endforeach
+@endsection

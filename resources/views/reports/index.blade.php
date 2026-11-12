@@ -1,0 +1,12 @@
+@extends('layouts.app')
+@section('title','Reports')
+@section('content')
+<div class="page-heading"><div><div class="kicker">Management Information</div><h1>Reports</h1><p class="tagline">By factory and across the entire business. Production reports are intentionally excluded.</p></div></div>
+<div class="actions" style="margin-bottom:14px"><a class="btn secondary" href="{{ route('export.transactions',['kind'=>'bills']) }}">Export Bills & Sales</a><a class="btn secondary" href="{{ route('export.transactions',['kind'=>'purchases']) }}">Export Yarn Purchases</a><a class="btn secondary" href="{{ route('export.stock') }}">Export Fabric Stock</a></div>
+<div class="card"><h2>Factory-wise Summary</h2><div class="table-wrap"><table><thead><tr><th>Factory</th><th class="num">Yarn Purchases</th><th class="num">Fabric Sales</th><th class="num">Conversion Bills</th><th class="num">Available Metres</th></tr></thead><tbody>
+@foreach($factories as $f)<tr><td>{{ $f->name }}</td><td class="num">Rs {{ number_format($f->yarn_total,2) }}</td><td class="num">Rs {{ number_format($f->sales_total,2) }}</td><td class="num">Rs {{ number_format($f->conversion_total,2) }}</td><td class="num">{{ number_format($f->available_metres,2) }}</td></tr>@endforeach
+<tr><td><strong>Combined</strong></td><td class="num"><strong>Rs {{ number_format($factories->sum('yarn_total'),2) }}</strong></td><td class="num"><strong>Rs {{ number_format($factories->sum('sales_total'),2) }}</strong></td><td class="num"><strong>Rs {{ number_format($factories->sum('conversion_total'),2) }}</strong></td><td class="num"><strong>{{ number_format($factories->sum('available_metres'),2) }}</strong></td></tr></tbody></table></div></div>
+<div class="card"><h2>Job Work Bag Balances</h2><div class="table-wrap"><table><thead><tr><th>Contract</th><th>Party</th><th>Factory</th><th class="num">Required Bags</th><th class="num">Received Bags</th><th class="num">Remaining Bags</th></tr></thead><tbody>
+@forelse($contracts as $c)<tr><td><a href="{{ route('contracts.show',$c) }}">{{ $c->reference }}</a></td><td>{{ $c->party->name }}</td><td>{{ $c->factory->name }}</td><td class="num">{{ number_format($c->required_bags,3) }}</td><td class="num">{{ number_format($c->receipts_sum_bags??0,3) }}</td><td class="num">{{ number_format(max(0,(float)$c->required_bags-(float)($c->receipts_sum_bags??0)),3) }}</td></tr>@empty<tr><td colspan="6" class="empty">No job-work contracts yet.</td></tr>@endforelse
+</tbody></table></div></div>
+@endsection

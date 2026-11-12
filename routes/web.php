@@ -1,0 +1,54 @@
+<?php
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\{LoginController, DashboardController, MasterController, ContractController, YarnController, FabricController, DispatchController, AccountsController, ReportsController,PrintController,ExportController,CorrectionsController,SecurityController};
+
+// Authentication is required for all business screens. Authorization, audits and backups are pending.
+Route::get('/login',[LoginController::class,'form'])->middleware('guest')->name('login');
+Route::post('/login',[LoginController::class,'login'])->middleware(['guest','throttle:5,1'])->name('login.post');
+Route::post('/logout',[LoginController::class,'logout'])->middleware('auth')->name('logout');
+Route::middleware('auth')->group(function () {
+Route::get('/',[DashboardController::class,'index'])->name('dashboard');
+Route::get('/setup',[MasterController::class,'index'])->name('setup.index');
+Route::post('/setup/factories',[MasterController::class,'storeFactory'])->name('setup.factories.store');
+Route::post('/setup/parties',[MasterController::class,'storeParty'])->name('setup.parties.store');
+Route::post('/setup/qualities',[MasterController::class,'storeQuality'])->name('setup.qualities.store');
+Route::get('/contracts',[ContractController::class,'index'])->name('contracts.index');
+Route::get('/contracts/new',[ContractController::class,'create'])->name('contracts.create');
+Route::post('/contracts',[ContractController::class,'store'])->name('contracts.store');
+Route::get('/contracts/{contract}',[ContractController::class,'show'])->name('contracts.show');
+Route::post('/contracts/{contract}/bag-receipts',[ContractController::class,'receiveBags'])->name('contracts.bags.store');
+Route::get('/yarn',[YarnController::class,'index'])->name('yarn.index');
+Route::post('/yarn/purchases',[YarnController::class,'storePurchase'])->name('yarn.purchases.store');
+Route::get('/fabric/checking',[FabricController::class,'index'])->name('fabric.index');
+Route::post('/fabric/checking',[FabricController::class,'storeChecking'])->name('fabric.checking.store');
+Route::get('/fabric/stock',[FabricController::class,'stock'])->name('fabric.stock');
+Route::get('/parchis',[DispatchController::class,'index'])->name('dispatch.index');
+Route::post('/parchis',[DispatchController::class,'storeKachi'])->name('dispatch.kachi.store');
+Route::get('/parchis/{kachi}',[DispatchController::class,'show'])->name('dispatch.show');
+Route::post('/parchis/{kachi}/pakki',[DispatchController::class,'storePakki'])->name('dispatch.pakki.store');
+Route::post('/parchis/{kachi}/returns',[DispatchController::class,'storeReturns'])->name('dispatch.returns.store');
+Route::get('/accounts',[AccountsController::class,'index'])->name('accounts.index');
+Route::get('/accounts/bills',[AccountsController::class,'bills'])->name('accounts.bills');
+Route::get('/accounts/{party}',[AccountsController::class,'show'])->name('accounts.show');
+Route::post('/accounts/payments',[AccountsController::class,'storePayment'])->name('accounts.payments.store');
+Route::get('/reports',[ReportsController::class,'index'])->name('reports.index');
+Route::get('/setup/{kind}/{id}/edit',[MasterController::class,'edit'])->whereIn('kind',['factory','party','quality'])->name('setup.edit');
+Route::put('/setup/{kind}/{id}',[MasterController::class,'update'])->whereIn('kind',['factory','party','quality'])->name('setup.update');
+Route::post('/corrections/checking/{checking}',[CorrectionsController::class,'voidChecking'])->name('corrections.checking');
+Route::post('/contracts/{contract}/close',[ContractController::class,'close'])->name('contracts.close');
+Route::get('/print/kachi/{kachi}',[PrintController::class,'kachi'])->name('print.kachi');
+Route::get('/print/pakki/{kachi}',[PrintController::class,'pakki'])->name('print.pakki');
+Route::get('/print/bill/{bill}',[PrintController::class,'bill'])->name('print.bill');
+Route::get('/print/purchase/{purchase}',[PrintController::class,'purchase'])->name('print.purchase');
+Route::get('/print/ledger/{party}',[PrintController::class,'ledger'])->name('print.ledger');
+Route::get('/export/ledger/{party}',[ExportController::class,'ledger'])->name('export.ledger');
+Route::get('/export/stock',[ExportController::class,'stock'])->name('export.stock');
+Route::get('/export/transactions',[ExportController::class,'transactions'])->name('export.transactions');
+Route::post('/corrections/payment/{payment}',[CorrectionsController::class,'voidPayment'])->name('corrections.payment');
+Route::post('/corrections/purchase/{purchase}',[CorrectionsController::class,'voidPurchase'])->name('corrections.purchase');
+Route::post('/corrections/kachi/{kachi}',[CorrectionsController::class,'voidKachi'])->name('corrections.kachi');
+Route::get('/access',[SecurityController::class,'index'])->name('security.index');
+Route::post('/access/users',[SecurityController::class,'createUser'])->name('security.users.store');
+Route::get('/my-password',[SecurityController::class,'passwordForm'])->name('security.password');
+Route::post('/my-password',[SecurityController::class,'changePassword'])->name('security.password.update');
+});

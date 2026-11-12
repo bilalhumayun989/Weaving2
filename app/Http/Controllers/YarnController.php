@@ -29,7 +29,7 @@ class YarnController extends Controller
         $contract=isset($d['contract_id'])?Contract::findOrFail($d['contract_id']):null;
         $supplier=Party::findOrFail($d['party_id']);
         if ($supplier->type==='customer') return back()->withErrors(['party_id'=>'Choose a supplier account.'])->withInput();
-        if ($contract && ($contract->type!=='job_work' || $contract->yarn_supplier!=='factory' || $contract->status!=='active' || (int)$contract->factory_id!==(int)$d['factory_id'])) {
+        if ($contract && ($contract->type!=='job_work' || $contract->yarn_supplier!=='factory' || $contract->status!=='active' || !$contract->coversFactory((int)$d['factory_id']))) {
             return back()->withErrors(['contract_id'=>'Choose an active factory-yarn Job Work contract for this factory.'])->withInput();
         }
         $d['total'] = round((float)$d['bags'] * (float)$d['rate_per_bag'], 2);

@@ -9,6 +9,10 @@ class Contract extends Model
     protected $guarded = [];
     protected $casts = ['parta_snapshot' => 'array'];
     public function factory() { return $this->belongsTo(Factory::class); }
+    public function coversFactory(int $factoryId): bool
+    {
+        return $this->factory_scope==='all' || (int)$this->factory_id===$factoryId;
+    }
     public function party() { return $this->belongsTo(Party::class); }
     public function quality() { return $this->belongsTo(FabricQuality::class, 'fabric_quality_id'); }
     public function receipts() { return $this->hasMany(YarnReceipt::class); }

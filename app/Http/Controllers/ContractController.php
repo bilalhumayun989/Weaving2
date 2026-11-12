@@ -31,7 +31,7 @@ class ContractController extends Controller
     public function store(Request $request)
     {
         $d = $request->validate([
-            'factory_id'=>'required|exists:factories,id', 'party_id'=>'required|exists:parties,id',
+            'factory_id'=>'required|string', 'party_id'=>'required|exists:parties,id',
             'fabric_quality_id'=>'required|exists:fabric_qualities,id',
             'type'=>'required|in:job_work,fabric_rate', 'contract_date'=>'required|date',
             'target_metres'=>'nullable|numeric|gt:0', 'rate_per_pick'=>'nullable|numeric|min:0',
@@ -45,6 +45,10 @@ class ContractController extends Controller
             'notes'=>'nullable|string|max:2500', 'parta_details'=>'nullable|string|max:10000',
             'yarn_supplier'=>'nullable|in:customer,factory',
         ]);
+        $factoryScope=$d['factory_id']==='all'?'all':'single';
+        if ($factoryScope==='single') Factory::findOrFail($d['factory_id']);
+        else $d['factory_id']=Factory::orderBy('id')->value('id') ?? throw ValidationException::withMessages(['factory_id'=>'Create at least one factory before using All Factories.']);
+        $d['factory_scope']=$factoryScope;
         if (Party::findOrFail($d['party_id'])->type==='supplier') {
             throw ValidationException::withMessages(['party_id'=>'Contracts can only be assigned to a customer or a customer/supplier party.']);
         }
@@ -114,7 +118,8 @@ class ContractController extends Controller
         $warpRemaining=max(0,round($warpRequired-$warpReceived,2));
         $weftRemaining=max(0,round($weftRequired-$weftReceived,2));
         $suppliers=Party::whereIn('type',['supplier','both'])->orderBy('name')->get();
-        return view('contracts.show', compact('contract','receipts','purchases','received','remaining','warpRequired','weftRequired','warpReceived','weftReceived','warpRemaining','weftRemaining','suppliers'));
+        $factories=Factory::orderBy('name')->get();
+        return view('contracts.show', compact('contract','receipts','purchases','received','remaining','warpRequired','weftRequired','warpReceived','weftReceived','warpRemaining','weftRemaining','suppliers','factories'));
     }
     public function receiveBags(Request $request, Contract $contract)
     {

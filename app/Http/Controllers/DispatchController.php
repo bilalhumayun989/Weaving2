@@ -34,7 +34,7 @@ class DispatchController extends Controller
             throw ValidationException::withMessages(['contract_id'=>'Own fabric sale requires a fabric-rate contract, or no contract for a stock sale.']);
         if ($d['kind']==='fabric_sale' && !$contract && !isset($d['rate_per_metre']))
             throw ValidationException::withMessages(['rate_per_metre'=>'For-stock sales require a selling rate per metre.']);
-        if ($contract && ((int)$contract->factory_id!==(int)$d['factory_id'] || (int)$contract->party_id!==(int)$d['party_id'] || $contract->status!=='active'))
+        if ($contract && (!$contract->coversFactory((int)$d['factory_id']) || (int)$contract->party_id!==(int)$d['party_id'] || $contract->status!=='active'))
             throw ValidationException::withMessages(['contract_id'=>'Contract must be active and match the selected buyer and factory.']);
 
         DB::transaction(function () use ($d,$contract) {

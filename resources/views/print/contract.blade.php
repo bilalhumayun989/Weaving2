@@ -9,7 +9,7 @@
   </div>
   <div>
     <p><strong>Customer / Party:</strong> {{ $contract->party->name }}</p>
-    <p><strong>Factory:</strong> {{ $contract->factory->name }}</p>
+    <p><strong>Factory:</strong> {{ ($contract->factory_scope ?? 'single')==='all'?'All Factories':$contract->factory->name }}</p>
     <p><strong>Fabric quality:</strong> {{ $contract->quality->name }}</p>
     <p><strong>Yarn supplied by:</strong> {{ $contract->type==='job_work'?($contract->yarn_supplier==='customer'?'Customer / Party':'Factory'): 'Factory' }}</p>
   </div>

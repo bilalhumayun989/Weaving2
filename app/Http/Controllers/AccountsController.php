@@ -78,7 +78,7 @@ class AccountsController extends Controller
     {
         $data=$request->validate([
             'name'=>'required|string|max:150|unique:parties,name',
-            'type'=>'required|in:customer,both,supplier',
+            'type'=>$request->input('return_to')==='contract'?'required|in:customer':'required|in:customer,both,supplier',
             'phone'=>'nullable|string|max:60','address'=>'nullable|string|max:1000',
             'opening_receivable'=>'nullable|numeric|min:0','opening_payable'=>'nullable|numeric|min:0',
         ]);

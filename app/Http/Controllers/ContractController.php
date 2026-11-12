@@ -44,6 +44,9 @@ class ContractController extends Controller
             'parta_weft_yarn_rate'=>'nullable|numeric|min:0',
             'notes'=>'nullable|string|max:2500', 'parta_details'=>'nullable|string|max:10000',
         ]);
+        if (Party::findOrFail($d['party_id'])->type==='supplier') {
+            throw ValidationException::withMessages(['party_id'=>'Contracts can only be assigned to a customer or a customer/supplier party.']);
+        }
         if ($d['type'] === 'job_work') {
             $quality = FabricQuality::findOrFail($d['fabric_quality_id']);
             if (!$quality->picks || (float)$quality->picks <= 0) {

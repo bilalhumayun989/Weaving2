@@ -9,7 +9,7 @@
 <body>
 <div class="app-shell">
   <aside class="sidebar">
-    <div class="brand"><div class="logo">W</div><div><strong>Weaving ERP</strong><small>BroshTech · ERP v1.1 RC</small></div></div>
+    <div class="brand"><div class="logo">W</div><div><strong>Weaving ERP</strong><small>BroshTech</small></div></div>
     <div class="side-caption">WORKSPACE</div>
     <nav>
       <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">⌂ <span>Dashboard</span></a>
@@ -24,7 +24,6 @@
     <nav><a href="{{ route('setup.index') }}" class="{{ request()->routeIs('setup.*') ? 'active' : '' }}">⚙ <span>Settings & Masters</span></a></nav>
     <nav><a href="{{ route('security.password') }}" class="{{ request()->routeIs('security.password*') ? 'active' : '' }}">♙ <span>My Password</span></a>
 @if(auth()->user()?->role==='admin')<a href="{{ route('security.index') }}" class="{{ request()->routeIs('security.index') ? 'active' : '' }}">♙ <span>Users & Audit</span></a>@endif</nav>
-<div class="side-note">Scope v1.1 · No production logs, COGS, or tax calculation.</div>
   </aside>
   <main class="main-content">
     <header class="topbar"><span>One Business · Three Factories</span><div class="actions"><span class="env">TEST BEFORE LIVE USE</span> <span class="small muted">{{ auth()->user()->name }} · {{ ucfirst(auth()->user()->role) }}</span><form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="btn secondary small">Sign Out</button></form></div></header>

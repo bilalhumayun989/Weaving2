@@ -107,6 +107,10 @@ class ContractController extends Controller
     public function show(Contract $contract)
     {
         $contract->load(['factory','party','quality']);
+        $salesBills=$contract->bills()->with('factory')->orderByDesc('billed_on')->orderByDesc('id')->get();
+        $provisionalSales=(float)$salesBills->where('billing_status','provisional')->sum('total');
+        $finalSales=(float)$salesBills->where('billing_status','final')->sum('total');
+        $voidSales=(float)$salesBills->where('billing_status','void')->sum('total');
         $receipts = $contract->receipts()->latest('received_on')->get();
         $purchases = $contract->yarnPurchases()->with('party')->whereNull('voided_at')->latest('purchased_on')->get();
         $warpRequired=(float)($contract->parta_snapshot['results']['warp_bags'] ?? 0);
@@ -119,7 +123,7 @@ class ContractController extends Controller
         $weftRemaining=max(0,round($weftRequired-$weftReceived,2));
         $suppliers=Party::whereIn('type',['supplier','both'])->orderBy('name')->get();
         $factories=Factory::orderBy('name')->get();
-        return view('contracts.show', compact('contract','receipts','purchases','received','remaining','warpRequired','weftRequired','warpReceived','weftReceived','warpRemaining','weftRemaining','suppliers','factories'));
+        return view('contracts.show', compact('contract','receipts','purchases','received','remaining','warpRequired','weftRequired','warpReceived','weftReceived','warpRemaining','weftRemaining','suppliers','factories','salesBills','provisionalSales','finalSales','voidSales'));
     }
     public function receiveBags(Request $request, Contract $contract)
     {

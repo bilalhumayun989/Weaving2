@@ -34,6 +34,8 @@ Route::get('/accounts/bills',[AccountsController::class,'bills'])->name('account
 Route::get('/accounts/{party}',[AccountsController::class,'show'])->name('accounts.show');
 Route::post('/accounts/payments',[AccountsController::class,'storePayment'])->name('accounts.payments.store');
 Route::get('/reports',[ReportsController::class,'index'])->name('reports.index');
+Route::get('/reports/sales',[ReportsController::class,'sales'])->name('reports.sales');
+Route::get('/reports/contracts',[ReportsController::class,'contractLedger'])->name('reports.contracts');
 Route::get('/setup/{kind}/{id}/edit',[MasterController::class,'edit'])->whereIn('kind',['factory','party','quality'])->name('setup.edit');
 Route::put('/setup/{kind}/{id}',[MasterController::class,'update'])->whereIn('kind',['factory','party','quality'])->name('setup.update');
 Route::post('/corrections/checking/{checking}',[CorrectionsController::class,'voidChecking'])->name('corrections.checking');
@@ -47,6 +49,7 @@ Route::get('/print/ledger/{party}',[PrintController::class,'ledger'])->name('pri
 Route::get('/export/ledger/{party}',[ExportController::class,'ledger'])->name('export.ledger');
 Route::get('/export/stock',[ExportController::class,'stock'])->name('export.stock');
 Route::get('/export/transactions',[ExportController::class,'transactions'])->name('export.transactions');
+Route::get('/export/sales',[ExportController::class,'sales'])->name('export.sales');
 Route::post('/corrections/payment/{payment}',[CorrectionsController::class,'voidPayment'])->name('corrections.payment');
 Route::post('/corrections/purchase/{purchase}',[CorrectionsController::class,'voidPurchase'])->name('corrections.purchase');
 Route::post('/corrections/kachi/{kachi}',[CorrectionsController::class,'voidKachi'])->name('corrections.kachi');

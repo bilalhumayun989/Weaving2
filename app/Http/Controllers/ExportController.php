@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 use App\Models\{Party, Thaan, YarnPurchase, Bill,Factory};
 use App\Services\LedgerService;
 use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\Builder;
 class ExportController extends Controller
 {
     private function csv(string $filename,array $header,iterable $rows)
@@ -50,5 +51,40 @@ class ExportController extends Controller
         }
         return $this->csv('fabric-sales-conversion-bills.csv',['Date','Bill','Factory','Party','Type','Status','Metres','Rate','Total'],
             Bill::with('factory','party')->orderBy('billed_on')->get()->map(fn($b)=>[$b->billed_on,$b->reference,$b->factory->name,$b->party->name,$b->type,$b->billing_status,$b->accepted_metres,$b->rate,$b->total]));
+    }
+
+    public function sales(Request $request)
+    {
+        $request->validate([
+            'date_from'=>'nullable|date','date_to'=>'nullable|date|after_or_equal:date_from',
+            'factory_id'=>'nullable|integer|exists:factories,id','party_id'=>'nullable|integer|exists:parties,id',
+            'contract_id'=>'nullable|integer|exists:contracts,id',
+            'type'=>'nullable|in:conversion,fabric_sale','status'=>'nullable|in:provisional,final,void',
+        ]);
+        $rows=$this->salesQuery($request)->with(['factory','party','contract.quality'])->orderBy('billed_on')->orderBy('id')->get();
+        return $this->csv('sales-ledger-report.csv',[
+            'Date','Bill','Status','Party','Factory','Contract','Quality','Sale Type','Metres','Rate Basis','Rate','Effective Rate / Metre','Sale / Receivable Amount (PKR)',
+        ],$rows->map(function($bill) {
+            $factoryYarn=$bill->type==='conversion' && $bill->contract?->yarn_supplier==='factory';
+            $perMetre=$bill->type==='conversion' && !$factoryYarn?(float)$bill->picks*(float)$bill->rate:(float)$bill->rate;
+            $basis=$bill->type==='conversion' && !$factoryYarn?'Per pick':'Per metre';
+            return [
+                $bill->billed_on,$bill->reference,$bill->billing_status,$bill->party->name,$bill->factory->name,
+                $bill->contract?->reference,$bill->contract?->quality?->name,$bill->type,$bill->accepted_metres,
+                $basis,$bill->rate,$perMetre,$bill->billing_status==='void'?0:$bill->total,
+            ];
+        }));
+    }
+
+    private function salesQuery(Request $request): Builder
+    {
+        return Bill::query()
+            ->when($request->filled('date_from'),fn($q)=>$q->whereDate('billed_on','>=',$request->input('date_from')))
+            ->when($request->filled('date_to'),fn($q)=>$q->whereDate('billed_on','<=',$request->input('date_to')))
+            ->when($request->filled('factory_id'),fn($q)=>$q->where('factory_id',$request->integer('factory_id')))
+            ->when($request->filled('party_id'),fn($q)=>$q->where('party_id',$request->integer('party_id')))
+            ->when($request->filled('contract_id'),fn($q)=>$q->where('contract_id',$request->integer('contract_id')))
+            ->when($request->filled('type'),fn($q)=>$q->where('type',$request->input('type')))
+            ->when($request->filled('status'),fn($q)=>$q->where('billing_status',$request->input('status')));
     }
 }

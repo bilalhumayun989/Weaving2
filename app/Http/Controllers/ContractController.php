@@ -64,6 +64,12 @@ class ContractController extends Controller
                 'parta_weft_count'=>'required|numeric|gt:0',
                 'parta_width'=>'required|numeric|gt:0',
             ]);
+            if ($provider === 'factory') {
+                $request->validate([
+                    'parta_warp_yarn_rate'=>'required|numeric|min:0',
+                    'parta_weft_yarn_rate'=>'required|numeric|min:0',
+                ]);
+            }
             $snap=PartaCalculator::calculate([
                 'quantity_metres'=>$job['target_metres'],
                 'reed'=>$job['parta_reed'], 'picks'=>$quality->picks,

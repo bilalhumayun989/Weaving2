@@ -22,15 +22,15 @@
 
 <section id="partaSection" class="parta-section">
   <h2>Parta — Yarn Requirement</h2>
-  <div class="note">The values below reproduce the supplied <strong>Fabric Costing</strong> formula. A bag is always <strong>100 lbs</strong>, whether it contains 24, 40 or any other number of cones. Yarn rates are optional estimating inputs and do NOT post inventory cost or COGS.</div>
+  <div class="note">The values below reproduce the supplied <strong>Fabric Costing</strong> formula. A bag is always <strong>100 lbs</strong>, whether it contains 24, 40 or any other number of cones. For customer-supplied yarn, yarn rates are optional estimates; for factory-supplied yarn, both rates are required to calculate the customer bill per metre.</div>
   <div class="form-grid" style="margin-top:16px">
     <div class="field"><label>Reed</label><input id="partaReed" name="parta_reed" type="number" min="0.01" step="0.01" placeholder="e.g. 90" value="{{ old('parta_reed') }}"></div>
     <div class="field"><label>Picks (from fabric quality)</label><input id="partaPicks" type="number" readonly placeholder="Select fabric quality"></div>
     <div class="field"><label>Warp Count</label><input id="partaWarpCount" name="parta_warp_count" type="number" min="0.001" step="0.001" placeholder="e.g. 58.5" value="{{ old('parta_warp_count') }}"></div>
     <div class="field"><label>Weft Count</label><input id="partaWeftCount" name="parta_weft_count" type="number" min="0.001" step="0.001" placeholder="e.g. 58.5" value="{{ old('parta_weft_count') }}"></div>
     <div class="field"><label>Fabric Width (inches)</label><input id="partaWidth" name="parta_width" type="number" min="0.001" step="0.001" placeholder="e.g. 63.5" value="{{ old('parta_width') }}"></div>
-    <div class="field"><label>Warp Yarn Rate (PKR / lb) — optional</label><input id="warpYarnRate" name="parta_warp_yarn_rate" type="number" min="0" step="0.0001" placeholder="e.g. 600" value="{{ old('parta_warp_yarn_rate') }}"></div>
-    <div class="field"><label>Weft Yarn Rate (PKR / lb) — optional</label><input id="weftYarnRate" name="parta_weft_yarn_rate" type="number" min="0" step="0.0001" placeholder="e.g. 600" value="{{ old('parta_weft_yarn_rate') }}"></div>
+    <div class="field"><label id="warpYarnRateLabel">Warp Yarn Rate (PKR / lb) — optional</label><input id="warpYarnRate" name="parta_warp_yarn_rate" type="number" min="0" step="0.0001" placeholder="e.g. 600" value="{{ old('parta_warp_yarn_rate') }}"></div>
+    <div class="field"><label id="weftYarnRateLabel">Weft Yarn Rate (PKR / lb) — optional</label><input id="weftYarnRate" name="parta_weft_yarn_rate" type="number" min="0" step="0.0001" placeholder="e.g. 600" value="{{ old('parta_weft_yarn_rate') }}"></div>
   </div>
   <div id="partaPreview" class="parta-preview" aria-live="polite">Enter quantity, fabric quality, Reed, counts and width to preview required bags.</div>
   <div class="field" style="margin-top:15px"><label>Parta / Contract Remarks (optional)</label><textarea name="parta_details" placeholder="Any additional agreed terms or a calculation reference">{{ old('parta_details') }}</textarea></div>
@@ -45,6 +45,8 @@
   const quality=document.getElementById('fabricQuality');
   const yarnSupplier=document.getElementById('yarnSupplier');
   const yarnSupplierField=document.getElementById('yarnSupplierField');
+  const warpRateLabel=document.getElementById('warpYarnRateLabel');
+  const weftRateLabel=document.getElementById('weftYarnRateLabel');
   const defaults=@json($qualityDefaults);
   const ids={metres:'metres',reed:'partaReed',picks:'partaPicks',warp:'partaWarpCount',weft:'partaWeftCount',width:'partaWidth',conversion:'pickRate',warpRate:'warpYarnRate',weftRate:'weftYarnRate'};
   const fields=Object.fromEntries(Object.entries(ids).map(([k,v])=>[k,document.getElementById(v)]));
@@ -74,6 +76,11 @@
     document.getElementById('qtyOptional').style.display=job?'none':'inline';
     yarnSupplierField.style.display=job?'flex':'none';
     yarnSupplier.required=job;
+    const factoryYarn=job&&yarnSupplier.value==='factory';
+    fields.warpRate.required=factoryYarn;
+    fields.weftRate.required=factoryYarn;
+    warpRateLabel.textContent='Warp Yarn Rate (PKR / lb)'+(factoryYarn?' — required for billing':' — optional');
+    weftRateLabel.textContent='Weft Yarn Rate (PKR / lb)'+(factoryYarn?' — required for billing':' — optional');
     [fields.metres,fields.reed,fields.warp,fields.weft,fields.width,fields.conversion].forEach(e=>e.required=job);
     calculate();
   }
@@ -130,7 +137,7 @@
       const q=data.quality,label=q.name+' ('+(q.picks??'?')+' picks)',option=new Option(label,q.id,true,true);option.dataset.picks=q.picks??'';option.dataset.warp=q.warp_count??'';option.dataset.weft=q.weft_count??'';option.dataset.width=q.width??'';quality.add(option);defaults[q.id]={picks:q.picks,warp_count:q.warp_count,weft_count:q.weft_count,width:q.width};selectQuality(true);closeModal(qualityPanel);['newQualityName','newQualityPicks','newQualityWarp','newQualityWeft','newQualityWidth'].forEach(id=>document.getElementById(id).value='');
     }catch(e){error.textContent=e.message;}finally{button.disabled=false;}
   });
-  quality.addEventListener('change',()=>selectQuality(true));type.addEventListener('change',toggle);
+  quality.addEventListener('change',()=>selectQuality(true));type.addEventListener('change',toggle);yarnSupplier.addEventListener('change',toggle);
   Object.values(fields).forEach(e=>e.addEventListener('input',calculate));
   selectQuality(false);toggle();
 })();

@@ -91,10 +91,20 @@ class DispatchController extends Controller
             $kachi->pakki()->create($d);
             if ($kachi->kind==='job_work') {
                 $contract=$kachi->contract()->firstOrFail();
-                $picks=(float)$contract->picks_at_contract;
-                $rate=(float)$contract->rate_per_pick;
+                if ($contract->yarn_supplier==='factory') {
+                    $estimatedRate=$contract->parta_snapshot['results']['estimated_fabric_rate_per_metre'] ?? null;
+                    if ($estimatedRate===null && (float)$d['accepted_metres']>0) {
+                        throw ValidationException::withMessages(['accepted_metres'=>'This factory-yarn contract has no valid estimated fabric rate. Update the contract yarn rates before creating the Pakki bill.']);
+                    }
+                    $rate=(float)$estimatedRate;
+                    $picks=null;
+                    $amount=round((float)$d['accepted_metres']*$rate,2);
+                } else {
+                    $picks=(float)$contract->picks_at_contract;
+                    $rate=(float)$contract->rate_per_pick;
+                    $amount=round((float)$d['accepted_metres']*$picks*$rate,2);
+                }
                 $type='conversion';
-                $amount=round((float)$d['accepted_metres']*$picks*$rate,2);
             } else {
                 $picks=null;
                 $rate=(float)$kachi->rate_per_metre;
@@ -109,7 +119,7 @@ class DispatchController extends Controller
             ]);
             AuditService::record('pakki.accepted',$kachi->pakki,['bill'=>$bill->reference,'accepted_metres'=>$d['accepted_metres'],'rejected_metres'=>$d['rejected_metres']]);
             if ($amount>0) $ledger->post($bill->party_id,$bill->factory_id,'receivable',$bill->billed_on,
-                ($type==='conversion'?'Conversion bill ':'Fabric sale ').$bill->reference,'bill',$bill->id,$amount,0);
+                ($type==='conversion'?($contract->yarn_supplier==='factory'?'Job Work bill (factory yarn) ':'Job Work conversion bill '):'Fabric sale ').$bill->reference,'bill',$bill->id,$amount,0);
             if (round((float)$d['rejected_metres'],2)>0) $kachi->update(['status'=>'pending_returns']);
             else {
                 foreach ($items as $item) {

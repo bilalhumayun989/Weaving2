@@ -11,22 +11,22 @@ class DropdownDataSeeder extends Seeder
 {
     public function run(): void
     {
-        foreach (['Demo Factory 1', 'Demo Factory 2', 'Demo Factory 3'] as $name) {
+        foreach (['Factory 1', 'Factory 2', 'Factory 3'] as $name) {
             Factory::firstOrCreate(['name' => $name]);
         }
 
         Party::firstOrCreate(
-            ['name' => 'Demo Buyer'],
+            ['name' => 'Hamaza'],
             ['type' => 'customer']
         );
         Party::firstOrCreate(
-            ['name' => 'Demo Yarn Supplier'],
+            ['name' => 'ALi'],
             ['type' => 'supplier']
         );
 
         foreach ([60, 66] as $picks) {
             FabricQuality::firstOrCreate(
-                ['name' => "Demo Quality - {$picks} Picks"],
+                ['name' => "Quality - {$picks} Picks"],
                 [
                     'picks' => $picks,
                     'notes' => 'Demo dropdown record; confirm specifications before use.',

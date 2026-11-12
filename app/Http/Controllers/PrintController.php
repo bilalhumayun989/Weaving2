@@ -22,7 +22,7 @@ class PrintController extends Controller
     }
     public function purchase(YarnPurchase $purchase)
     {
-        $purchase->load(['factory','party']);
+        $purchase->load(['factory','party','contract']);
         return view('print.purchase',['purchase'=>$purchase,'printTitle'=>'Yarn Purchase']);
     }
     public function ledger(Party $party,LedgerService $service)

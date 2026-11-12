@@ -14,7 +14,7 @@ class ContractController extends Controller
 {
     public function index()
     {
-        $contracts = Contract::with(['factory','party','quality'])->withSum('receipts', 'bags')->latest()->paginate(30);
+        $contracts = Contract::with(['factory','party','quality'])->withSum('receipts', 'bags')->withSum(['yarnPurchases as active_yarn_bags'=>fn($query)=>$query->whereNull('voided_at')], 'bags')->latest()->paginate(30);
         return view('contracts.index', compact('contracts'));
     }
     public function create()
@@ -104,9 +104,17 @@ class ContractController extends Controller
     {
         $contract->load(['factory','party','quality']);
         $receipts = $contract->receipts()->latest('received_on')->get();
-        $received = (float)$receipts->sum('bags');
-        $remaining = max(0, round((float)$contract->required_bags - $received, 2));
-        return view('contracts.show', compact('contract', 'receipts','received','remaining'));
+        $purchases = $contract->yarnPurchases()->with('party')->whereNull('voided_at')->latest('purchased_on')->get();
+        $warpRequired=(float)($contract->parta_snapshot['results']['warp_bags'] ?? 0);
+        $weftRequired=(float)($contract->parta_snapshot['results']['weft_bags'] ?? 0);
+        $warpReceived=(float)$receipts->where('yarn_type','warp')->sum('bags')+(float)$purchases->where('yarn_type','warp')->sum('bags');
+        $weftReceived=(float)$receipts->where('yarn_type','weft')->sum('bags')+(float)$purchases->where('yarn_type','weft')->sum('bags');
+        $received=$warpReceived+$weftReceived+(float)$receipts->whereNull('yarn_type')->sum('bags');
+        $remaining=max(0,round((float)$contract->required_bags-$received,2));
+        $warpRemaining=max(0,round($warpRequired-$warpReceived,2));
+        $weftRemaining=max(0,round($weftRequired-$weftReceived,2));
+        $suppliers=Party::whereIn('type',['supplier','both'])->orderBy('name')->get();
+        return view('contracts.show', compact('contract','receipts','purchases','received','remaining','warpRequired','weftRequired','warpReceived','weftReceived','warpRemaining','weftRemaining','suppliers'));
     }
     public function receiveBags(Request $request, Contract $contract)
     {
@@ -114,7 +122,7 @@ class ContractController extends Controller
         if ($contract->yarn_supplier !== 'customer') {
             throw ValidationException::withMessages(['bags'=>'This contract uses factory-supplied yarn. Customer bag receipts are not allowed.']);
         }
-        $d = $request->validate(['received_on'=>'required|date','bags'=>'required|numeric|gt:0|decimal:0,2',
+        $d = $request->validate(['received_on'=>'required|date','yarn_type'=>'required|in:warp,weft','bags'=>'required|numeric|gt:0|decimal:0,2',
             'reference'=>'nullable|string|max:150','notes'=>'nullable|string|max:1000',
             'cones_per_bag'=>'nullable|integer|min:1|max:200']);
         $receipt=DB::transaction(function () use ($contract,$d) {
@@ -122,16 +130,20 @@ class ContractController extends Controller
             if ($locked->type!=='job_work' || $locked->status!=='active' || $locked->yarn_supplier!=='customer') {
                 throw ValidationException::withMessages(['bags'=>'Customer bag receipts are not allowed for this contract.']);
             }
-            $alreadyReceived=(float)$locked->receipts()->sum('bags');
-            $remaining=max(0,round((float)$locked->required_bags-$alreadyReceived,2));
-            if ((float)$d['bags']>$remaining) {
-                throw ValidationException::withMessages(['bags'=>'Only '.number_format($remaining,2).' bags remain to be supplied for this contract.']);
+            $parta=$locked->parta_snapshot['results'] ?? [];
+            $required=(float)($parta[$d['yarn_type'].'_bags'] ?? 0);
+            $alreadyType=(float)$locked->receipts()->where('yarn_type',$d['yarn_type'])->sum('bags');
+            $alreadyTotal=(float)$locked->receipts()->sum('bags');
+            $typeRemaining=max(0,round($required-$alreadyType,2));
+            $totalRemaining=max(0,round((float)$locked->required_bags-$alreadyTotal,2));
+            if ((float)$d['bags']>$typeRemaining || (float)$d['bags']>$totalRemaining) {
+                throw ValidationException::withMessages(['bags'=>'Only '.number_format(min($typeRemaining,$totalRemaining),2).' bags remain for this yarn type and contract.']);
             }
             $saved=$locked->receipts()->create($d);
             AuditService::record('bags.received',$saved,['contract'=>$locked->reference,'bags'=>$saved->bags]);
             return $saved;
         });
-        return back()->with('success', 'Customer-supplied yarn bags received.');
+        return back()->with('success', ucfirst($d['yarn_type']).' yarn bags received from the customer.');
     }
     public function close(Request $request, Contract $contract)
     {

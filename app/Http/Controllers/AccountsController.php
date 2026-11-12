@@ -48,7 +48,7 @@ class AccountsController extends Controller
             'payable'=>$ledger->timeline($party,'payable'),
             'factories'=>Factory::orderBy('name')->get(),
             'payments'=>Payment::where('party_id',$party->id)->latest('id')->limit(30)->get(),
-            'purchases'=>\App\Models\YarnPurchase::with('factory')->where('party_id',$party->id)->latest('purchased_on')->limit(30)->get(),
+            'purchases'=>\App\Models\YarnPurchase::with(['factory','contract'])->where('party_id',$party->id)->latest('purchased_on')->limit(30)->get(),
             'bills'=>Bill::with(['factory','contract'])->where('party_id',$party->id)->latest('billed_on')->limit(30)->get(),
         ]);
     }

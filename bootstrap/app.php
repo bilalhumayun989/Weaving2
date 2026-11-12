@@ -3,6 +3,9 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -14,5 +17,21 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        $exceptions->render(function (\Throwable $exception, Request $request) {
+            if ($request->expectsJson() || $exception instanceof ValidationException) return null;
+
+            $status = $exception instanceof HttpExceptionInterface ? $exception->getStatusCode() : 500;
+            if ($status < 500) return null;
+
+            $referer = $request->headers->get('referer');
+            $refererHost = $referer ? parse_url($referer, PHP_URL_HOST) : null;
+            if ($request->hasSession() && $request->isMethod('POST') && $refererHost === $request->getHost()) {
+                return redirect()->to($referer)->withInput()->with('form_error',
+                    'We could not save this information because of a server problem. Your entered values were kept; please review the form and try again.');
+            }
+
+            return response()->view('errors.generic', [
+                'retryUrl' => $request->user() ? route('dashboard') : route('login'),
+            ], 500);
+        });
     })->create();

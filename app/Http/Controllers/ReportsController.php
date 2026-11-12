@@ -14,7 +14,7 @@ class ReportsController extends Controller
             $factory->available_metres=Thaan::where('factory_id',$factory->id)->where('status','available')->sum('metres');
             return $factory;
         });
-        $contracts=Contract::where('type','job_work')->with(['party','factory','quality'])->withSum('receipts','bags')->get();
+        $contracts=Contract::where('type','job_work')->where('yarn_supplier','customer')->with(['party','factory','quality'])->withSum('receipts','bags')->get();
         return view('reports.index', compact('factories','contracts'));
     }
 }

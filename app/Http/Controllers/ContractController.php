@@ -43,11 +43,15 @@ class ContractController extends Controller
             'parta_warp_yarn_rate'=>'nullable|numeric|min:0',
             'parta_weft_yarn_rate'=>'nullable|numeric|min:0',
             'notes'=>'nullable|string|max:2500', 'parta_details'=>'nullable|string|max:10000',
+            'yarn_supplier'=>'nullable|in:customer,factory',
         ]);
         if (Party::findOrFail($d['party_id'])->type==='supplier') {
             throw ValidationException::withMessages(['party_id'=>'Contracts can only be assigned to a customer or a customer/supplier party.']);
         }
         if ($d['type'] === 'job_work') {
+            // Older clients that predate the explicit selector retain the former customer-supplied default.
+            $provider=$d['yarn_supplier']??'customer';
+            $d['yarn_supplier']=$provider;
             $quality = FabricQuality::findOrFail($d['fabric_quality_id']);
             if (!$quality->picks || (float)$quality->picks <= 0) {
                 throw ValidationException::withMessages(['fabric_quality_id'=>'Set a positive pick count on the chosen fabric quality first.']);
@@ -74,6 +78,7 @@ class ContractController extends Controller
             $d['picks_at_contract']=$quality->picks;
             $d['rate_per_metre']=null;
         } else {
+            $d['yarn_supplier']='factory';
             if (!isset($d['rate_per_metre'])) {
                 throw ValidationException::withMessages(['rate_per_metre'=>'Fabric Rate contract requires an agreed rate per metre.']);
             }
@@ -99,6 +104,9 @@ class ContractController extends Controller
     public function receiveBags(Request $request, Contract $contract)
     {
         if ($contract->type !== 'job_work' || $contract->status !== 'active') abort(422, 'Bag receipts are only allowed on active job-work contracts.');
+        if ($contract->yarn_supplier !== 'customer') {
+            throw ValidationException::withMessages(['bags'=>'This contract uses factory-supplied yarn. Customer bag receipts are not allowed.']);
+        }
         $d = $request->validate(['received_on'=>'required|date','bags'=>'required|numeric|gt:0',
             'reference'=>'nullable|string|max:150','notes'=>'nullable|string|max:1000',
             'cones_per_bag'=>'nullable|integer|min:1|max:200']);

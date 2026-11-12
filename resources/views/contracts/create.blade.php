@@ -2,14 +2,16 @@
 @section('title','New Contract')
 @section('content')
 <div class="page-heading"><div><div class="kicker">Contracts</div><h1>Create a Contract</h1><p class="tagline">Job Work now calculates required bags directly from the approved Fabric Costing worksheet.</p></div><a class="btn secondary" href="{{ route('contracts.index') }}">Back to Contracts</a></div>
-<div class="card"><form action="{{ route('contracts.store') }}" method="POST">@csrf
+@if(session('form_error') || $errors->any())<div class="quick-modal" id="contractErrorModal"><div class="quick-modal-backdrop" data-close-modal></div><section class="quick-modal-card" role="dialog" aria-modal="true" aria-labelledby="contractErrorTitle"><button class="quick-modal-close" id="closeContractError" type="button" data-close-modal aria-label="Close">×</button><div class="kicker">Please Review</div><h2 id="contractErrorTitle">The contract wasn’t saved</h2><p>{{ session('form_error','Some contract details need correction. Your entries have been kept in the form below.') }}</p>@if($errors->any())<ul class="form-error-list">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>@endif<button class="btn" type="button" data-close-modal onclick="document.getElementById('contractForm').scrollIntoView({behavior:'smooth'});">Review and correct the form</button></section></div>@endif
+<div class="card"><form id="contractForm" action="{{ route('contracts.store') }}" method="POST">@csrf
 <div class="form-grid">
-<div class="field"><label>Contract Type</label><select name="type" id="contractType" required><option value="job_work" @selected(old('type','job_work')==='job_work')>Job Work — party supplies yarn</option><option value="fabric_rate" @selected(old('type')==='fabric_rate')>Fabric Rate — factory supplies yarn</option></select></div>
+<div class="field"><label>Contract Type</label><select name="type" id="contractType" required><option value="job_work" @selected(old('type','job_work')==='job_work')>Job Work — conversion contract</option><option value="fabric_rate" @selected(old('type')==='fabric_rate')>Fabric Rate — factory-owned fabric</option></select></div>
 <div class="field"><label>Contract Date</label><input name="contract_date" type="date" value="{{ old('contract_date',date('Y-m-d')) }}" required></div>
 <div class="field"><label>Factory</label><select required name="factory_id"><option value="">Choose factory</option>@foreach($factories as $f)<option value="{{ $f->id }}" @selected(old('factory_id')==$f->id)>{{ $f->name }}</option>@endforeach</select></div>
 <div class="field"><label>Party / Buyer</label><div class="select-action"><select required name="party_id"><option value="">Choose party</option>@foreach($parties as $p)<option value="{{ $p->id }}" @selected(old('party_id')==$p->id)>{{ $p->name }} · {{ ucfirst($p->type) }}</option>@endforeach</select><button class="btn secondary small" type="button" id="showNewParty">Create Customer / Party</button></div></div>
 <div class="field"><label>Fabric Quality</label><div class="select-action"><select name="fabric_quality_id" id="fabricQuality" required><option value="">Choose quality</option>@foreach($qualities as $q)<option value="{{ $q->id }}" data-picks="{{ $q->picks }}" data-warp="{{ $q->warp_count }}" data-weft="{{ $q->weft_count }}" data-width="{{ $q->width }}" @selected(old('fabric_quality_id')==$q->id)>{{ $q->name }} ({{ $q->picks ?? '?' }} picks)</option>@endforeach</select><button class="btn secondary small" type="button" id="showNewQuality">Create Quality</button></div><div class="hint">Picks come from the saved fabric quality and are fixed on the contract.</div></div>
 <div class="field"><label>Contract Quantity (metres) <span id="qtyOptional">— optional for Fabric Rate</span></label><input name="target_metres" id="metres" type="number" min="0.01" step="0.01" value="{{ old('target_metres') }}"></div>
+<div class="field" id="yarnSupplierField"><label for="yarnSupplier">Job Work Yarn Bags Supplied By</label><select name="yarn_supplier" id="yarnSupplier" required><option value="customer" @selected(old('yarn_supplier','customer')==='customer')>Customer / Party</option><option value="factory" @selected(old('yarn_supplier')==='factory')>Factory</option></select><div class="hint">This decides whether customer bag receipts can be recorded against the contract.</div></div>
 <div class="field for-job"><label>Conversion Rate per Pick (PKR)</label><input name="rate_per_pick" id="pickRate" type="number" min="0" step="0.0001" value="{{ old('rate_per_pick') }}"></div>
 <div class="field for-rate" style="display:none"><label>Agreed Fabric Sale Rate / Metre (PKR)</label><input name="rate_per_metre" id="fabricRate" type="number" min="0" step="0.0001" value="{{ old('rate_per_metre') }}"></div>
 </div>
@@ -41,6 +43,8 @@
 (() => {
   const type=document.getElementById('contractType');
   const quality=document.getElementById('fabricQuality');
+  const yarnSupplier=document.getElementById('yarnSupplier');
+  const yarnSupplierField=document.getElementById('yarnSupplierField');
   const defaults=@json($qualityDefaults);
   const ids={metres:'metres',reed:'partaReed',picks:'partaPicks',warp:'partaWarpCount',weft:'partaWeftCount',width:'partaWidth',conversion:'pickRate',warpRate:'warpYarnRate',weftRate:'weftYarnRate'};
   const fields=Object.fromEntries(Object.entries(ids).map(([k,v])=>[k,document.getElementById(v)]));
@@ -68,6 +72,8 @@
     document.getElementById('partaSection').style.display=job?'block':'none';
     document.getElementById('fabricRate').required=!job;
     document.getElementById('qtyOptional').style.display=job?'none':'inline';
+    yarnSupplierField.style.display=job?'flex':'none';
+    yarnSupplier.required=job;
     [fields.metres,fields.reed,fields.warp,fields.weft,fields.width,fields.conversion].forEach(e=>e.required=job);
     calculate();
   }
@@ -94,8 +100,10 @@
   const partySelect=document.querySelector('select[name="party_id"]');
   const panel=document.getElementById('newPartyPanel');
   const qualityPanel=document.getElementById('newQualityPanel');
+  const errorPanel=document.getElementById('contractErrorModal');
   // Keep dialogs outside the contract form/layout so fixed positioning is viewport-relative.
   document.body.append(panel,qualityPanel);
+  if(errorPanel){document.body.append(errorPanel);document.body.classList.add('modal-open');document.getElementById('closeContractError').focus();}
   function openModal(modal,focus){modal.hidden=false;document.body.classList.add('modal-open');document.getElementById(focus).focus();}
   function closeModal(modal){modal.hidden=true;if(document.querySelectorAll('.quick-modal:not([hidden])').length===0)document.body.classList.remove('modal-open');}
   document.querySelectorAll('[data-close-modal]').forEach(button=>button.addEventListener('click',()=>closeModal(button.closest('.quick-modal'))));

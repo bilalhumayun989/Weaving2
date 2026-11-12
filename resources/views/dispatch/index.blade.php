@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title','Kachi / Pakki')
 @section('content')
-<div class="page-heading"><div><div class="kicker">Fabric Dispatch & Acceptance</div><h1>Kachi & Pakki Parchi</h1><p class="tagline">Only Pakki accepted metres generate a bill.</p></div></div>
+<div class="page-heading"><div><div class="kicker">Fabric Dispatch & Acceptance</div><h1>Kachi & Pakki Parchi</h1><p class="tagline">Kachi creates a provisional bill from dispatched metres; Pakki updates it to the final accepted amount.</p></div></div>
 <div class="card"><h2>Create Kachi Parchi</h2><form method="POST" action="{{ route('dispatch.kachi.store') }}">@csrf<div class="form-grid">
 <div class="field"><label>Dispatch Type</label><select name="kind" id="dispatchKind"><option value="job_work">Job Work / Conversion</option><option value="fabric_sale">Factory-Owned Fabric Sale</option></select></div>
 <div class="field"><label>Dispatch Date</label><input name="dispatched_on" type="date" value="{{ date('Y-m-d') }}" required></div>

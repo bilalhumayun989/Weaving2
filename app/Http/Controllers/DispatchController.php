@@ -19,7 +19,7 @@ class DispatchController extends Controller
             'thaans'=>Thaan::with(['quality','factory'])->where('status','available')->orderBy('factory_id')->orderBy('thaan_no')->get(),
         ]);
     }
-    public function storeKachi(Request $request)
+    public function storeKachi(Request $request,LedgerService $ledger)
     {
         $d=$request->validate([
             'factory_id'=>'required|exists:factories,id','party_id'=>'required|exists:parties,id',
@@ -37,7 +37,7 @@ class DispatchController extends Controller
         if ($contract && (!$contract->coversFactory((int)$d['factory_id']) || (int)$contract->party_id!==(int)$d['party_id'] || $contract->status!=='active'))
             throw ValidationException::withMessages(['contract_id'=>'Contract must be active and match the selected buyer and factory.']);
 
-        DB::transaction(function () use ($d,$contract) {
+        DB::transaction(function () use ($d,$contract,$ledger) {
             $items=Thaan::whereIn('id',$d['thaan_ids'])->lockForUpdate()->get();
             if ($items->count()!==count($d['thaan_ids'])) throw ValidationException::withMessages(['thaan_ids'=>'Some Thaans were not found.']);
             $qualityId=$items->first()->fabric_quality_id;
@@ -63,8 +63,39 @@ class DispatchController extends Controller
                 $kachi->items()->create(['thaan_id'=>$item->id,'metres'=>$item->metres]);
                 $item->update(['status'=>'dispatched']);
             }
+            $provisionalMetres=round((float)$items->sum('metres'),2);
+            if ($d['kind']==='job_work') {
+                if ($contract->yarn_supplier==='factory') {
+                    $rate=$contract->parta_snapshot['results']['estimated_fabric_rate_per_metre'] ?? null;
+                    if ($rate===null && $provisionalMetres>0) {
+                        throw ValidationException::withMessages(['contract_id'=>'This factory-yarn contract has no valid estimated fabric rate. Update the contract yarn rates before creating the Kachi.']);
+                    }
+                    $rate=(float)$rate;
+                    $picks=null;
+                } else {
+                    $picks=(float)$contract->picks_at_contract;
+                    $rate=(float)$contract->rate_per_pick;
+                }
+                $type='conversion';
+                $amount=round($provisionalMetres*($type==='conversion'&&$picks!==null?$picks*$rate:$rate),2);
+            } else {
+                $picks=null;
+                $rate=(float)$kachi->rate_per_metre;
+                $type='fabric_sale';
+                $amount=round($provisionalMetres*$rate,2);
+            }
+            $bill=Bill::create([
+                'reference'=>ReferenceService::make('BIL'),'kachi_parchi_id'=>$kachi->id,
+                'factory_id'=>$kachi->factory_id,'party_id'=>$kachi->party_id,'contract_id'=>$kachi->contract_id,
+                'type'=>$type,'billing_status'=>'provisional','billed_on'=>$kachi->dispatched_on,
+                'accepted_metres'=>$provisionalMetres,'picks'=>$picks,'rate'=>$rate,'total'=>$amount,
+            ]);
+            $ledger->post($bill->party_id,$bill->factory_id,'receivable',$bill->billed_on,
+                'Provisional '.($type==='conversion'?'Job Work bill ':'Fabric sale ').$bill->reference,
+                'bill',$bill->id,$amount,0);
+            AuditService::record('bill.provisional',$bill,['kachi'=>$kachi->reference,'dispatched_metres'=>$provisionalMetres,'amount'=>$amount]);
         });
-        return back()->with('success','Kachi Parchi created; Thaans marked dispatched.');
+        return back()->with('success','Kachi Parchi created; provisional bill and customer receivable posted.');
     }
     public function show(KachiParchi $kachi)
     {
@@ -88,7 +119,9 @@ class DispatchController extends Controller
                 throw ValidationException::withMessages(['accepted_thaan_count'=>'Accepted count must agree with complete-Thaan rejection.']);
             if (((float)$d['accepted_metres'] > 0 && (int)$d['accepted_thaan_count']===0) || (round((float)$d['accepted_metres'],2)==0.0 && (int)$d['accepted_thaan_count']>0))
                 throw ValidationException::withMessages(['accepted_thaan_count'=>'Zero accepted metres must have zero accepted Thaans.']);
-            $kachi->pakki()->create($d);
+            $pakki=$kachi->pakki()->create($d);
+            $provisionalBill=Bill::where('kachi_parchi_id',$kachi->id)->lockForUpdate()->firstOrFail();
+            $provisionalAmount=(float)$provisionalBill->total;
             if ($kachi->kind==='job_work') {
                 $contract=$kachi->contract()->firstOrFail();
                 if ($contract->yarn_supplier==='factory') {
@@ -111,15 +144,19 @@ class DispatchController extends Controller
                 $type='fabric_sale';
                 $amount=round((float)$d['accepted_metres']*$rate,2);
             }
-            $bill=Bill::create([
-                'reference'=>ReferenceService::make('BIL'),'kachi_parchi_id'=>$kachi->id,
-                'factory_id'=>$kachi->factory_id,'party_id'=>$kachi->party_id,'contract_id'=>$kachi->contract_id,
-                'type'=>$type,'billed_on'=>$d['accepted_on'],'accepted_metres'=>$d['accepted_metres'],
-                'picks'=>$picks,'rate'=>$rate,'total'=>$amount,
+            $provisionalBill->update([
+                'type'=>$type,'billing_status'=>'final','billed_on'=>$d['accepted_on'],
+                'accepted_metres'=>$d['accepted_metres'],'picks'=>$picks,'rate'=>$rate,'total'=>$amount,
             ]);
-            AuditService::record('pakki.accepted',$kachi->pakki,['bill'=>$bill->reference,'accepted_metres'=>$d['accepted_metres'],'rejected_metres'=>$d['rejected_metres']]);
-            if ($amount>0) $ledger->post($bill->party_id,$bill->factory_id,'receivable',$bill->billed_on,
-                ($type==='conversion'?($contract->yarn_supplier==='factory'?'Job Work bill (factory yarn) ':'Job Work conversion bill '):'Fabric sale ').$bill->reference,'bill',$bill->id,$amount,0);
+            AuditService::record('pakki.accepted',$pakki,['bill'=>$provisionalBill->reference,'provisional_amount'=>$provisionalAmount,'final_amount'=>$amount,'accepted_metres'=>$d['accepted_metres'],'rejected_metres'=>$d['rejected_metres']]);
+            $ledgerEntry=\App\Models\LedgerEntry::where('source_type','bill')->where('source_id',$provisionalBill->id)->where('account_type','receivable')->lockForUpdate()->first();
+            $description=($type==='conversion'?($contract->yarn_supplier==='factory'?'Job Work bill (factory yarn) ':'Job Work conversion bill '):'Fabric sale ').$provisionalBill->reference;
+            if ($ledgerEntry) {
+                $ledgerEntry->update(['entry_on'=>$provisionalBill->billed_on,'description'=>$description,'debit'=>$amount,'credit'=>0]);
+            } else {
+                $ledger->post($provisionalBill->party_id,$provisionalBill->factory_id,'receivable',$provisionalBill->billed_on,
+                    $description,'bill',$provisionalBill->id,$amount,0);
+            }
             if (round((float)$d['rejected_metres'],2)>0) $kachi->update(['status'=>'pending_returns']);
             else {
                 foreach ($items as $item) {
@@ -129,7 +166,7 @@ class DispatchController extends Controller
                 $kachi->update(['status'=>'settled']);
             }
         });
-        return redirect()->route('dispatch.show',$kachi)->with('success','Pakki recorded, bill generated from accepted metres, and customer receivable updated.');
+        return redirect()->route('dispatch.show',$kachi)->with('success','Pakki recorded; the provisional bill and receivable were finalized at the accepted amount.');
     }
     public function storeReturns(Request $request,KachiParchi $kachi)
     {

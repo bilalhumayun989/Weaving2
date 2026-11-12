@@ -37,11 +37,11 @@ class CorrectionsController extends Controller
         });
         return back()->with('success','Purchase and its payable reversed.');
     }
-    public function voidKachi(Request $request,KachiParchi $kachi)
+    public function voidKachi(Request $request,KachiParchi $kachi,LedgerService $ledger)
     {
         AuditService::adminOnly();
         $d=$request->validate(['reason'=>'required|string|min:8|max:1000']);
-        DB::transaction(function () use ($kachi,$d) {
+        DB::transaction(function () use ($kachi,$d,$ledger) {
             $k=KachiParchi::whereKey($kachi->id)->lockForUpdate()->firstOrFail();
             if($k->voided_at || $k->pakki()->exists()) throw ValidationException::withMessages(['reason'=>'Only a Kachi without Pakki can be cancelled once.']);
             $items=$k->items()->lockForUpdate()->get();
@@ -49,6 +49,14 @@ class CorrectionsController extends Controller
             if($thaans->contains(fn ($t)=>$t->status!=='dispatched'))
                 throw ValidationException::withMessages(['reason'=>'Thaan status changed; cancellation blocked to protect stock.']);
             foreach($thaans as $thaan) $thaan->update(['status'=>'available']);
+            $bill=$k->bill()->lockForUpdate()->first();
+            if ($bill && $bill->billing_status==='provisional') {
+                $amount=(float)$bill->total;
+                if ($amount>0) $ledger->post($bill->party_id,$bill->factory_id,'receivable',today()->toDateString(),
+                    'Provisional bill reversal: '.$bill->reference,'kachi_void',$k->id,0,$amount);
+                $bill->update(['billing_status'=>'void']);
+                AuditService::record('bill.provisional_reversed',$bill,['kachi'=>$k->reference,'amount'=>$amount,'reason'=>$d['reason']]);
+            }
             $k->update(['voided_at'=>now(),'void_reason'=>$d['reason']]);
             AuditService::record('kachi.cancelled',$k,['reason'=>$d['reason']]);
         });

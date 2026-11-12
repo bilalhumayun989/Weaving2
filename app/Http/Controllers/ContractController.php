@@ -99,7 +99,8 @@ class ContractController extends Controller
         $contract->load(['factory','party','quality']);
         $receipts = $contract->receipts()->latest('received_on')->get();
         $received = (float)$receipts->sum('bags');
-        return view('contracts.show', compact('contract', 'receipts','received'));
+        $remaining = max(0, round((float)$contract->required_bags - $received, 2));
+        return view('contracts.show', compact('contract', 'receipts','received','remaining'));
     }
     public function receiveBags(Request $request, Contract $contract)
     {
@@ -107,11 +108,23 @@ class ContractController extends Controller
         if ($contract->yarn_supplier !== 'customer') {
             throw ValidationException::withMessages(['bags'=>'This contract uses factory-supplied yarn. Customer bag receipts are not allowed.']);
         }
-        $d = $request->validate(['received_on'=>'required|date','bags'=>'required|numeric|gt:0',
+        $d = $request->validate(['received_on'=>'required|date','bags'=>'required|numeric|gt:0|decimal:0,2',
             'reference'=>'nullable|string|max:150','notes'=>'nullable|string|max:1000',
             'cones_per_bag'=>'nullable|integer|min:1|max:200']);
-        $receipt=$contract->receipts()->create($d);
-        AuditService::record('bags.received',$receipt,['contract'=>$contract->reference,'bags'=>$receipt->bags]);
+        $receipt=DB::transaction(function () use ($contract,$d) {
+            $locked=Contract::whereKey($contract->id)->lockForUpdate()->firstOrFail();
+            if ($locked->type!=='job_work' || $locked->status!=='active' || $locked->yarn_supplier!=='customer') {
+                throw ValidationException::withMessages(['bags'=>'Customer bag receipts are not allowed for this contract.']);
+            }
+            $alreadyReceived=(float)$locked->receipts()->sum('bags');
+            $remaining=max(0,round((float)$locked->required_bags-$alreadyReceived,2));
+            if ((float)$d['bags']>$remaining) {
+                throw ValidationException::withMessages(['bags'=>'Only '.number_format($remaining,2).' bags remain to be supplied for this contract.']);
+            }
+            $saved=$locked->receipts()->create($d);
+            AuditService::record('bags.received',$saved,['contract'=>$locked->reference,'bags'=>$saved->bags]);
+            return $saved;
+        });
         return back()->with('success', 'Customer-supplied yarn bags received.');
     }
     public function close(Request $request, Contract $contract)

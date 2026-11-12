@@ -10,7 +10,7 @@ class AccountsController extends Controller
 {
     public function index(LedgerService $ledger)
     {
-        $parties=Party::withCount(['ledgerEntries','contracts','purchases','bills','payments'])->orderBy('name')->get()->map(function ($p) use ($ledger) {
+        $parties=Party::whereIn('type',['customer','both'])->withCount(['ledgerEntries','contracts','purchases','bills','payments'])->orderBy('name')->get()->map(function ($p) use ($ledger) {
             $p->balances=$ledger->balances($p);
             $p->has_account_activity=$p->ledger_entries_count+$p->purchases_count+$p->bills_count+$p->payments_count>0
                 || (float)$p->opening_receivable>0 || (float)$p->opening_payable>0;
@@ -63,14 +63,15 @@ class AccountsController extends Controller
             else $ledger->post($payment->party_id,$payment->factory_id,'payable',$payment->paid_on,
                 'Payment paid'.($payment->reference?' — '.$payment->reference:''),'payment',$payment->id,(float)$payment->amount,0);
         });
-        return redirect()->route('accounts.show',$d['party_id'])->with('success','Payment recorded and running balance updated.');
+        $party=Party::findOrFail($d['party_id']);
+        return redirect($party->type==='supplier'?route('yarn.index'):route('accounts.show',$party))->with('success','Payment recorded and running balance updated.');
     }
 
     public function storeParty(Request $request)
     {
         $data=$request->validate([
             'name'=>'required|string|max:150|unique:parties,name',
-            'type'=>'required|in:customer,supplier,both',
+            'type'=>'required|in:customer,both,supplier',
             'phone'=>'nullable|string|max:60','address'=>'nullable|string|max:1000',
             'opening_receivable'=>'nullable|numeric|min:0','opening_payable'=>'nullable|numeric|min:0',
         ]);

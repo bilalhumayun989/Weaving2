@@ -20,7 +20,7 @@ class ContractController extends Controller
     public function create()
     {
         return view('contracts.create', [
-            'factories' => Factory::orderBy('name')->get(), 'parties' => Party::orderBy('name')->get(),
+            'factories' => Factory::orderBy('name')->get(), 'parties' => Party::whereIn('type',['customer','both'])->orderBy('name')->get(),
             'qualities' => FabricQuality::orderBy('name')->get(),
             'qualityDefaults' => FabricQuality::all()->mapWithKeys(fn($q)=>[(string)$q->id=>[
                 'picks'=>$q->picks, 'warp_count'=>$q->warp_count,

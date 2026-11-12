@@ -8,11 +8,15 @@ use Illuminate\Support\Facades\DB;
 
 class YarnController extends Controller
 {
-    public function index()
+    public function index(LedgerService $ledger)
     {
+        $suppliers=Party::whereIn('type',['supplier','both'])->orderBy('name')->get()->map(function($party) use($ledger){
+            $party->balances=$ledger->balances($party); return $party;
+        });
         return view('yarn.index', [
             'purchases' => YarnPurchase::with(['factory','party'])->latest('purchased_on')->paginate(30),
-            'factories' => Factory::orderBy('name')->get(), 'parties' => Party::orderBy('name')->get(),
+            'factories' => Factory::orderBy('name')->get(), 'parties' => Party::whereIn('type',['supplier','both'])->orderBy('name')->get(),
+            'suppliers'=>$suppliers,
         ]);
     }
     public function storePurchase(Request $request, LedgerService $ledger)

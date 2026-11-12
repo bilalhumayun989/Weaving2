@@ -46,6 +46,7 @@ class MasterController extends Controller
         ]);
          $quality=FabricQuality::create($data);
         AuditService::record('fabric_quality.created',$quality);
+        if($request->expectsJson()) return response()->json(['quality'=>$quality],201);
         return redirect()->route('setup.index')->with('success', 'Fabric quality added.');
     }
     private function record(string $kind,int $id)

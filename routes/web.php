@@ -11,6 +11,8 @@ Route::get('/',[DashboardController::class,'index'])->name('dashboard');
 Route::get('/setup',[MasterController::class,'index'])->name('setup.index');
 Route::post('/setup/factories',[MasterController::class,'storeFactory'])->name('setup.factories.store');
 Route::post('/setup/parties',[MasterController::class,'storeParty'])->name('setup.parties.store');
+Route::post('/parties',[AccountsController::class,'storeParty'])->name('parties.store');
+Route::post('/qualities',[MasterController::class,'storeQuality'])->name('qualities.store');
 Route::post('/setup/qualities',[MasterController::class,'storeQuality'])->name('setup.qualities.store');
 Route::get('/contracts',[ContractController::class,'index'])->name('contracts.index');
 Route::get('/contracts/new',[ContractController::class,'create'])->name('contracts.create');

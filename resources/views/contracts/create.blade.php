@@ -7,12 +7,16 @@
 <div class="field"><label>Contract Type</label><select name="type" id="contractType" required><option value="job_work" @selected(old('type','job_work')==='job_work')>Job Work — party supplies yarn</option><option value="fabric_rate" @selected(old('type')==='fabric_rate')>Fabric Rate — factory supplies yarn</option></select></div>
 <div class="field"><label>Contract Date</label><input name="contract_date" type="date" value="{{ old('contract_date',date('Y-m-d')) }}" required></div>
 <div class="field"><label>Factory</label><select required name="factory_id"><option value="">Choose factory</option>@foreach($factories as $f)<option value="{{ $f->id }}" @selected(old('factory_id')==$f->id)>{{ $f->name }}</option>@endforeach</select></div>
-<div class="field"><label>Party / Buyer</label><select required name="party_id"><option value="">Choose party</option>@foreach($parties as $p)<option value="{{ $p->id }}" @selected(old('party_id')==$p->id)>{{ $p->name }}</option>@endforeach</select></div>
-<div class="field"><label>Fabric Quality</label><select name="fabric_quality_id" id="fabricQuality" required><option value="">Choose quality</option>@foreach($qualities as $q)<option value="{{ $q->id }}" @selected(old('fabric_quality_id')==$q->id)>{{ $q->name }} ({{ $q->picks ?? '?' }} picks)</option>@endforeach</select><div class="hint">Picks come from the saved fabric quality and are fixed on the contract.</div></div>
+<div class="field"><label>Party / Buyer</label><div class="select-action"><select required name="party_id"><option value="">Choose party</option>@foreach($parties as $p)<option value="{{ $p->id }}" @selected(old('party_id')==$p->id)>{{ $p->name }} · {{ ucfirst($p->type) }}</option>@endforeach</select><button class="btn secondary small" type="button" id="showNewParty" aria-label="Add customer or party" title="Add customer or party">+</button></div></div>
+<div class="field"><label>Fabric Quality</label><div class="select-action"><select name="fabric_quality_id" id="fabricQuality" required><option value="">Choose quality</option>@foreach($qualities as $q)<option value="{{ $q->id }}" data-picks="{{ $q->picks }}" data-warp="{{ $q->warp_count }}" data-weft="{{ $q->weft_count }}" data-width="{{ $q->width }}" @selected(old('fabric_quality_id')==$q->id)>{{ $q->name }} ({{ $q->picks ?? '?' }} picks)</option>@endforeach</select><button class="btn secondary small" type="button" id="showNewQuality" aria-label="Add fabric quality" title="Add fabric quality">+</button></div><div class="hint">Picks come from the saved fabric quality and are fixed on the contract.</div></div>
 <div class="field"><label>Contract Quantity (metres) <span id="qtyOptional">— optional for Fabric Rate</span></label><input name="target_metres" id="metres" type="number" min="0.01" step="0.01" value="{{ old('target_metres') }}"></div>
 <div class="field for-job"><label>Conversion Rate per Pick (PKR)</label><input name="rate_per_pick" id="pickRate" type="number" min="0" step="0.0001" value="{{ old('rate_per_pick') }}"></div>
 <div class="field for-rate" style="display:none"><label>Agreed Fabric Sale Rate / Metre (PKR)</label><input name="rate_per_metre" id="fabricRate" type="number" min="0" step="0.0001" value="{{ old('rate_per_metre') }}"></div>
 </div>
+
+<div class="quick-modal" id="newPartyPanel" hidden><div class="quick-modal-backdrop" data-close-modal></div><section class="quick-modal-card" role="dialog" aria-modal="true" aria-labelledby="partyModalTitle"><button class="quick-modal-close" type="button" data-close-modal aria-label="Close">×</button><div class="kicker">Quick Add</div><h2 id="partyModalTitle">Customer / Party</h2><div class="form-grid"><div class="field span-2"><label for="newPartyName">Party Name</label><input id="newPartyName" maxlength="150" placeholder="Customer or supplier name"></div><div class="field"><label for="newPartyType">Account Type</label><select id="newPartyType"><option value="customer">Customer</option><option value="supplier">Supplier</option><option value="both">Both</option></select></div><div class="field"><label for="newPartyPhone">Phone (optional)</label><input id="newPartyPhone" maxlength="60"></div></div><div class="quick-modal-actions"><button class="btn" type="button" id="saveNewParty">Save and Select</button></div><div id="newPartyError" class="hint" role="alert"></div></section></div>
+
+<div class="quick-modal" id="newQualityPanel" hidden><div class="quick-modal-backdrop" data-close-modal></div><section class="quick-modal-card" role="dialog" aria-modal="true" aria-labelledby="qualityModalTitle"><button class="quick-modal-close" type="button" data-close-modal aria-label="Close">×</button><div class="kicker">Quick Add</div><h2 id="qualityModalTitle">Fabric Quality</h2><div class="form-grid"><div class="field span-2"><label for="newQualityName">Quality Name</label><input id="newQualityName" maxlength="150" placeholder="e.g. Grey 60x60"></div><div class="field"><label for="newQualityPicks">Picks</label><input id="newQualityPicks" type="number" min="0.01" max="10000" step="0.01" placeholder="e.g. 60"></div><div class="field"><label for="newQualityWarp">Warp Count</label><input id="newQualityWarp" maxlength="80" placeholder="e.g. 30s"></div><div class="field"><label for="newQualityWeft">Weft Count</label><input id="newQualityWeft" maxlength="80" placeholder="e.g. 20s"></div><div class="field"><label for="newQualityWidth">Width</label><input id="newQualityWidth" maxlength="80" placeholder="e.g. 63 inches"></div></div><div class="quick-modal-actions"><button class="btn" type="button" id="saveNewQuality">Save and Select</button></div><div id="newQualityError" class="hint" role="alert"></div></section></div>
 
 <section id="partaSection" class="parta-section">
   <h2>Parta — Yarn Requirement</h2>
@@ -49,7 +53,8 @@
     return /^\d+(\.\d+)?\s*[sS]?$/.test(text)?text.replace(/[sS]/g,'').trim():'';
   }
   function selectQuality(force) {
-    const d=defaults[quality.value]||{};
+    const selected=quality.selectedOptions[0];
+    const d=defaults[quality.value]|| (selected?{picks:selected.dataset.picks,warp_count:selected.dataset.warp,weft_count:selected.dataset.weft,width:selected.dataset.width}:{});
     fields.picks.value=d.picks??'';
     for(const [key,name] of [['warp','warp_count'],['weft','weft_count'],['width','width']]) {
       if(force || !fields[key].value) fields[key].value=numericDefault(d[name]);
@@ -86,6 +91,35 @@
       +(estimated===null?'':'<div><small>Estimated fabric cost / metre</small><strong>Rs '+estimated.toFixed(4)+'</strong></div>')
       +'</div>';
   }
+  const partySelect=document.querySelector('select[name="party_id"]');
+  const panel=document.getElementById('newPartyPanel');
+  const qualityPanel=document.getElementById('newQualityPanel');
+  function openModal(modal,focus){modal.hidden=false;document.body.classList.add('modal-open');document.getElementById(focus).focus();}
+  function closeModal(modal){modal.hidden=true;if(document.querySelectorAll('.quick-modal:not([hidden])').length===0)document.body.classList.remove('modal-open');}
+  document.querySelectorAll('[data-close-modal]').forEach(button=>button.addEventListener('click',()=>closeModal(button.closest('.quick-modal'))));
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'){document.querySelectorAll('.quick-modal:not([hidden])').forEach(closeModal);}});
+  document.getElementById('showNewParty').addEventListener('click',()=>openModal(panel,'newPartyName'));
+  document.getElementById('saveNewParty').addEventListener('click',async()=>{
+    const button=document.getElementById('saveNewParty'),error=document.getElementById('newPartyError'),name=document.getElementById('newPartyName').value.trim();
+    error.textContent=''; if(!name){error.textContent='Enter a party name.';return;}
+    button.disabled=true;
+    try {
+      const response=await fetch(@json(route('parties.store')),{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content},body:JSON.stringify({name,type:document.getElementById('newPartyType').value,phone:document.getElementById('newPartyPhone').value||null,return_to:'contract'})});
+      const data=await response.json();
+      if(!response.ok) throw new Error(data.message||Object.values(data.errors||{}).flat().join(' ')||'Could not add the party.');
+      const party=data.party,option=new Option(party.name+' · '+party.type.charAt(0).toUpperCase()+party.type.slice(1),party.id,true,true);partySelect.add(option);closeModal(panel);document.getElementById('newPartyName').value='';
+    } catch(e){error.textContent=e.message;} finally {button.disabled=false;}
+  });
+  document.getElementById('showNewQuality').addEventListener('click',()=>openModal(qualityPanel,'newQualityName'));
+  document.getElementById('saveNewQuality').addEventListener('click',async()=>{
+    const button=document.getElementById('saveNewQuality'),error=document.getElementById('newQualityError'),name=document.getElementById('newQualityName').value.trim();
+    error.textContent='';if(!name){error.textContent='Enter a quality name.';return;}button.disabled=true;
+    try {
+      const response=await fetch(@json(route('qualities.store')),{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content},body:JSON.stringify({name,picks:document.getElementById('newQualityPicks').value||null,warp_count:document.getElementById('newQualityWarp').value||null,weft_count:document.getElementById('newQualityWeft').value||null,width:document.getElementById('newQualityWidth').value||null})});
+      const data=await response.json();if(!response.ok)throw new Error(data.message||Object.values(data.errors||{}).flat().join(' ')||'Could not add fabric quality.');
+      const q=data.quality,label=q.name+' ('+(q.picks??'?')+' picks)',option=new Option(label,q.id,true,true);option.dataset.picks=q.picks??'';option.dataset.warp=q.warp_count??'';option.dataset.weft=q.weft_count??'';option.dataset.width=q.width??'';quality.add(option);defaults[q.id]={picks:q.picks,warp_count:q.warp_count,weft_count:q.weft_count,width:q.width};selectQuality(true);closeModal(qualityPanel);['newQualityName','newQualityPicks','newQualityWarp','newQualityWeft','newQualityWidth'].forEach(id=>document.getElementById(id).value='');
+    }catch(e){error.textContent=e.message;}finally{button.disabled=false;}
+  });
   quality.addEventListener('change',()=>selectQuality(true));type.addEventListener('change',toggle);
   Object.values(fields).forEach(e=>e.addEventListener('input',calculate));
   selectQuality(false);toggle();

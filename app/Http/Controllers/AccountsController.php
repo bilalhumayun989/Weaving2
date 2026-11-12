@@ -10,14 +10,18 @@ class AccountsController extends Controller
 {
     public function index(LedgerService $ledger)
     {
-        $parties=Party::orderBy('name')->get()->map(function ($p) use ($ledger) {
-            $p->balances=$ledger->balances($p); return $p;
+        $parties=Party::withCount(['ledgerEntries','contracts','purchases','bills','payments'])->orderBy('name')->get()->map(function ($p) use ($ledger) {
+            $p->balances=$ledger->balances($p);
+            $p->has_account_activity=$p->ledger_entries_count+$p->purchases_count+$p->bills_count+$p->payments_count>0
+                || (float)$p->opening_receivable>0 || (float)$p->opening_payable>0;
+            return $p;
         });
         return view('accounts.index', [
             'parties'=>$parties,
             'receivables'=>$parties->sum(fn ($p)=>max(0,$p->balances['receivable'])),
             'payables'=>$parties->sum(fn ($p)=>max(0,$p->balances['payable'])),
             'factories'=>Factory::orderBy('name')->get(),
+            'withoutAccounts'=>$parties->where('has_account_activity',false)->count(),
         ]);
     }
     public function bills(Request $request)
@@ -40,6 +44,8 @@ class AccountsController extends Controller
             'payable'=>$ledger->timeline($party,'payable'),
             'factories'=>Factory::orderBy('name')->get(),
             'payments'=>Payment::where('party_id',$party->id)->latest('id')->limit(30)->get(),
+            'purchases'=>\App\Models\YarnPurchase::with('factory')->where('party_id',$party->id)->latest('purchased_on')->limit(30)->get(),
+            'bills'=>Bill::with(['factory','contract'])->where('party_id',$party->id)->latest('billed_on')->limit(30)->get(),
         ]);
     }
     public function storePayment(Request $request,LedgerService $ledger)
@@ -58,5 +64,22 @@ class AccountsController extends Controller
                 'Payment paid'.($payment->reference?' — '.$payment->reference:''),'payment',$payment->id,(float)$payment->amount,0);
         });
         return redirect()->route('accounts.show',$d['party_id'])->with('success','Payment recorded and running balance updated.');
+    }
+
+    public function storeParty(Request $request)
+    {
+        $data=$request->validate([
+            'name'=>'required|string|max:150|unique:parties,name',
+            'type'=>'required|in:customer,supplier,both',
+            'phone'=>'nullable|string|max:60','address'=>'nullable|string|max:1000',
+            'opening_receivable'=>'nullable|numeric|min:0','opening_payable'=>'nullable|numeric|min:0',
+        ]);
+        $party=Party::create($data);
+        AuditService::record('party.created',$party);
+        if($request->expectsJson()) return response()->json(['party'=>$party],201);
+        $redirect=match($request->input('return_to')) {
+            'accounts'=>route('accounts.index'), 'contract'=>route('contracts.create'), default=>route('setup.index'),
+        };
+        return redirect($redirect)->with('success','Party added and ready to use.');
     }
 }

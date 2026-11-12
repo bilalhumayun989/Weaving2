@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\{Bill, Contract, Factory, FabricQuality, Party, Thaan, KachiParchi};
 use App\Services\LedgerService;
 use App\Models\User;
+use Database\Seeders\DropdownDataSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -20,6 +21,26 @@ class WeavingWorkflowTest extends TestCase
         $party=Party::create(['name'=>'Customer One','type'=>'both']);
         $quality=FabricQuality::create(['name'=>'Grey 60 Picks','picks'=>60]);
         return compact('f1','f2','party','quality');
+    }
+
+    public function test_database_seeder_adds_only_idempotent_dropdown_data(): void
+    {
+        $this->seed(DropdownDataSeeder::class);
+        $this->seed(DropdownDataSeeder::class);
+
+        $this->assertDatabaseCount('factories', 3);
+        $this->assertDatabaseCount('parties', 2);
+        $this->assertDatabaseCount('fabric_qualities', 2);
+        $this->assertDatabaseCount('contracts', 0);
+        $this->assertDatabaseCount('yarn_purchases', 0);
+        $this->assertDatabaseCount('users', 0);
+
+        $this->actingAs(User::factory()->create())
+            ->get(route('contracts.create'))
+            ->assertOk()
+            ->assertSee('Demo Factory 1')
+            ->assertSee('Demo Buyer')
+            ->assertSee('Demo Quality - 66 Picks');
     }
 
     public function test_job_contract_calculates_parta_bags_server_side_and_ignores_forged_manual_bags(): void

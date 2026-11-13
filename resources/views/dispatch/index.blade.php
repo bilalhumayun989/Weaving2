@@ -5,9 +5,9 @@
 <div class="card"><h2>Create Kachi Parchi</h2><form method="POST" action="{{ route('dispatch.kachi.store') }}">@csrf<div class="form-grid">
 <div class="field"><label>Dispatch Type</label><select name="kind" id="dispatchKind"><option value="job_work">Job Work / Conversion</option><option value="fabric_sale">Factory-Owned Fabric Sale</option></select></div>
 <div class="field"><label>Dispatch Date</label><input name="dispatched_on" type="date" value="{{ date('Y-m-d') }}" required></div>
-<div class="field"><label>Factory</label><select name="factory_id" required id="factory"><option value="">Select factory</option>@foreach($factories as $f)<option value="{{ $f->id }}">{{ $f->name }}</option>@endforeach</select></div>
+<div class="field"><label>Factory</label><select name="factory_id" required id="factory"><option value="">Select factory</option>@foreach($factories as $f)<option value="{{ $f->id }}">{{ $f->name }}</option>@endforeach</select><div class="hint">A Kachi dispatch is recorded for one physical factory at a time. An All Factories contract can be used with any factory that has matching Thaans.</div></div>
 <div class="field"><label>Customer</label><select name="party_id" required><option value="">Select customer</option>@foreach($parties as $p)<option value="{{ $p->id }}">{{ $p->name }}</option>@endforeach</select></div>
-<div class="field"><label>Contract</label><select name="contract_id" id="contract" ><option value="">No contract (own stock sale only)</option>@foreach($contracts as $c)<option value="{{ $c->id }}" data-type="{{ $c->type }}" data-party="{{ $c->party_id }}" data-factory="{{ $c->factory_id }}" data-scope="{{ $c->factory_scope ?? 'single' }}">{{ $c->reference }} · {{ $c->party->name }}{{ ($c->factory_scope ?? 'single')==='all'?' · All Factories':'' }}</option>@endforeach</select></div>
+<div class="field"><label>Contract</label><select name="contract_id" id="contract" ><option value="">No contract (own stock sale only)</option>@foreach($contracts as $c)<option value="{{ $c->id }}" data-type="{{ $c->type }}" data-party="{{ $c->party_id }}" data-factory="{{ $c->factory_id }}" data-scope="{{ $c->factory_scope ?? 'single' }}">{{ $c->reference }} · {{ $c->party->name }}{{ ($c->factory_scope ?? 'single')==='all'?' · All Factories':'' }}</option>@endforeach</select><div class="hint">Choose a factory to narrow contracts. All Factories contracts remain available for that factory; selecting a single-factory contract fills its factory automatically.</div></div>
 <div class="field" id="rateField" style="display:none"><label>Sale Rate / Metre (for stock sale)</label><input type="number" name="rate_per_metre" min="0" step="0.0001" placeholder="Only if no contract"></div>
 <div class="field span-2"><label>Available Thaans for this Dispatch</label><div class="select-list">@forelse($thaans as $t)<label class="thaan-item" data-factory="{{ $t->factory_id }}" data-kind="{{ $t->ownership }}" data-contract="{{ $t->contract_id ?? '' }}" data-quality="{{ $t->fabric_quality_id }}" data-metres="{{ $t->metres }}"><input type="checkbox" name="thaan_ids[]" value="{{ $t->id }}"> <span>{{ $t->thaan_no }} · {{ number_format($t->metres,2) }} m · {{ $t->quality->name }} · {{ $t->factory->name }} · {{ $t->contract_id?'Contract '.$t->contract_id:'Own Stock' }}</span></label>@empty<div class="empty">No available Thaans. Enter checked fabric first.</div>@endforelse</div><div class="hint">Select Thaans from one factory and one quality. Unallocated own-stock fabric can also be sold against a newly created fabric-rate contract.</div><div id="dispatchSelectionSummary" class="note" aria-live="polite">0 Thaans selected</div></div>
 </div><div class="input-actions"><button class="btn">Create Kachi Parchi</button></div></form></div>
@@ -24,7 +24,12 @@ function filter(){
   const own=kind.value==='fabric_sale';
   rateField.style.display=own?'flex':'none';
   contract.required=!own;
-  [...contract.options].forEach(o=>o.hidden=!!o.dataset.type&&o.dataset.type!==(own?'fabric_rate':'job_work'));
+  [...contract.options].forEach(o=>{
+    if(!o.dataset.type){o.hidden=false;return;}
+    const typeMatches=o.dataset.type===(own?'fabric_rate':'job_work');
+    const factoryMatches=!factory.value||o.dataset.scope==='all'||o.dataset.factory===factory.value;
+    o.hidden=!typeMatches||!factoryMatches;
+  });
   if(contract.selectedOptions[0]?.hidden)contract.value='';
   const selected=contract.selectedOptions[0];
   stockItems.forEach(el=>{

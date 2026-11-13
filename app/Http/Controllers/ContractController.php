@@ -1,7 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
-use App\Models\{Contract, Factory, Party, FabricQuality, YarnReceipt};
+use App\Models\{Contract, Factory, Party, FabricQuality, YarnReceipt, YarnQuality};
 use App\Services\ReferenceService;
 use App\Services\PartaCalculator;
 use Illuminate\Http\Request;
@@ -112,18 +112,20 @@ class ContractController extends Controller
         $finalSales=(float)$salesBills->where('billing_status','final')->sum('total');
         $voidSales=(float)$salesBills->where('billing_status','void')->sum('total');
         $receipts = $contract->receipts()->latest('received_on')->get();
-        $purchases = $contract->yarnPurchases()->with('party')->withSum(['payments as linked_paid_total'=>fn($q)=>$q->whereNull('voided_at')],'amount')->whereNull('voided_at')->latest('purchased_on')->get();
+        $purchases = $contract->yarnPurchases()->with(['party','yarnQuality'])->withSum(['payments as linked_paid_total'=>fn($q)=>$q->whereNull('voided_at')],'amount')->whereNull('voided_at')->latest('purchased_on')->get();
         $warpRequired=(float)($contract->parta_snapshot['results']['warp_bags'] ?? 0);
         $weftRequired=(float)($contract->parta_snapshot['results']['weft_bags'] ?? 0);
-        $warpReceived=(float)$receipts->where('yarn_type','warp')->sum('bags')+(float)$purchases->where('yarn_type','warp')->sum('bags');
-        $weftReceived=(float)$receipts->where('yarn_type','weft')->sum('bags')+(float)$purchases->where('yarn_type','weft')->sum('bags');
+        $factorySuppliesYarn=$contract->yarn_supplier==='factory';
+        $warpReceived=(float)$receipts->where('yarn_type','warp')->sum('bags')+($factorySuppliesYarn?(float)$purchases->where('yarn_type','warp')->sum('bags'):0);
+        $weftReceived=(float)$receipts->where('yarn_type','weft')->sum('bags')+($factorySuppliesYarn?(float)$purchases->where('yarn_type','weft')->sum('bags'):0);
         $received=$warpReceived+$weftReceived+(float)$receipts->whereNull('yarn_type')->sum('bags');
         $remaining=max(0,round((float)$contract->required_bags-$received,2));
         $warpRemaining=max(0,round($warpRequired-$warpReceived,2));
         $weftRemaining=max(0,round($weftRequired-$weftReceived,2));
         $suppliers=Party::whereIn('type',['supplier','both'])->orderBy('name')->get();
         $factories=Factory::orderBy('name')->get();
-        return view('contracts.show', compact('contract','receipts','purchases','received','remaining','warpRequired','weftRequired','warpReceived','weftReceived','warpRemaining','weftRemaining','suppliers','factories','salesBills','provisionalSales','finalSales','voidSales'));
+        $yarnQualities=YarnQuality::orderBy('name')->get();
+        return view('contracts.show', compact('contract','receipts','purchases','received','remaining','warpRequired','weftRequired','warpReceived','weftReceived','warpRemaining','weftRemaining','suppliers','factories','yarnQualities','salesBills','provisionalSales','finalSales','voidSales'));
     }
     public function receiveBags(Request $request, Contract $contract)
     {

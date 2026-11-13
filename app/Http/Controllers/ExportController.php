@@ -47,7 +47,7 @@ class ExportController extends Controller
         $kind=$request->query('kind','bills');
         if($kind==='purchases') {
             return $this->csv('yarn-purchases.csv',['Date','Factory','Supplier','Invoice','Yarn','Bags','Rate','Total','Contract','Payment Terms (days)','Due Date','Broker / Terms Note','Status'],
-                YarnPurchase::with(['factory','party','contract'])->orderBy('purchased_on')->get()->map(fn($p)=>[$p->purchased_on,$p->factory->name,$p->party->name,$p->invoice_no,$p->yarn_description,$p->bags,$p->rate_per_bag,$p->total,$p->contract?->reference,$p->payment_terms_days,$p->payment_due_on,$p->payment_terms_note,$p->voided_at?'Reversed':'Active']));
+                YarnPurchase::with(['factory','party','contract','yarnQuality'])->orderBy('purchased_on')->get()->map(fn($p)=>[$p->purchased_on,$p->factory_scope==='all'?'All Factories':$p->factory->name,$p->party->name,$p->invoice_no,$p->yarnQuality?->name??$p->yarn_description,$p->bags,$p->rate_per_bag,$p->total,$p->contract?->reference,$p->payment_terms_days,$p->payment_due_on,$p->payment_terms_note,$p->voided_at?'Reversed':'Active']));
         }
         return $this->csv('fabric-sales-conversion-bills.csv',['Date','Bill','Factory','Party','Type','Status','Metres','Rate','Total'],
             Bill::with('factory','party')->orderBy('billed_on')->get()->map(fn($b)=>[$b->billed_on,$b->reference,$b->factory->name,$b->party->name,$b->type,$b->billing_status,$b->accepted_metres,$b->rate,$b->total]));

@@ -22,16 +22,17 @@ class PrintController extends Controller
     }
     public function purchase(YarnPurchase $purchase)
     {
-        $purchase->load(['factory','party','contract']);
+        $purchase->load(['factory','party','contract','yarnQuality']);
         return view('print.purchase',['purchase'=>$purchase,'printTitle'=>'Yarn Purchase']);
     }
     public function contract(Contract $contract)
     {
         $contract->load(['factory','party','quality']);
         $receipts=$contract->receipts()->orderBy('received_on')->get();
-        $purchases=$contract->yarnPurchases()->with('party')->whereNull('voided_at')->orderBy('purchased_on')->get();
-        $warpReceived=(float)$receipts->where('yarn_type','warp')->sum('bags')+(float)$purchases->where('yarn_type','warp')->sum('bags');
-        $weftReceived=(float)$receipts->where('yarn_type','weft')->sum('bags')+(float)$purchases->where('yarn_type','weft')->sum('bags');
+        $purchases=$contract->yarnPurchases()->with(['party','yarnQuality'])->whereNull('voided_at')->orderBy('purchased_on')->get();
+        $factorySuppliesYarn=$contract->yarn_supplier==='factory';
+        $warpReceived=(float)$receipts->where('yarn_type','warp')->sum('bags')+($factorySuppliesYarn?(float)$purchases->where('yarn_type','warp')->sum('bags'):0);
+        $weftReceived=(float)$receipts->where('yarn_type','weft')->sum('bags')+($factorySuppliesYarn?(float)$purchases->where('yarn_type','weft')->sum('bags'):0);
         return view('print.contract',compact('contract','receipts','purchases','warpReceived','weftReceived')+['printTitle'=>'Contract']);
     }
     public function ledger(Party $party,LedgerService $service)

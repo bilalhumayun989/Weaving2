@@ -31,7 +31,7 @@ class CorrectionsController extends Controller
             $p=YarnPurchase::whereKey($purchase->id)->lockForUpdate()->firstOrFail();
             if($p->voided_at) throw ValidationException::withMessages(['reason'=>'Purchase already reversed.']);
             if($p->payments()->whereNull('voided_at')->exists()) throw ValidationException::withMessages(['reason'=>'Reverse all payments linked to this purchase before reversing the purchase.']);
-            if((float)$p->total>0) $ledger->post($p->party_id,$p->factory_id,'payable',today()->toDateString(),
+            if((float)$p->total>0) $ledger->post($p->party_id,$p->factory_scope==='all'?null:$p->factory_id,'payable',today()->toDateString(),
                 'Yarn purchase reversal: '.($p->invoice_no?:'#'.$p->id),'yarn_purchase_void',$p->id,(float)$p->total,0);
             $p->update(['voided_at'=>now(),'void_reason'=>$d['reason']]);
             AuditService::record('purchase.reversed',$p,['reason'=>$d['reason'],'total'=>$p->total]);

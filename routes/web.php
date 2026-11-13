@@ -21,6 +21,7 @@ Route::get('/contracts/{contract}',[ContractController::class,'show'])->name('co
 Route::post('/contracts/{contract}/bag-receipts',[ContractController::class,'receiveBags'])->name('contracts.bags.store');
 Route::get('/yarn',[YarnController::class,'index'])->name('yarn.index');
 Route::post('/yarn/purchases',[YarnController::class,'storePurchase'])->name('yarn.purchases.store');
+Route::post('/yarn/qualities',[YarnController::class,'storeQuality'])->name('yarn.qualities.store');
 Route::get('/fabric/checking',[FabricController::class,'index'])->name('fabric.index');
 Route::post('/fabric/checking',[FabricController::class,'storeChecking'])->name('fabric.checking.store');
 Route::get('/fabric/stock',[FabricController::class,'stock'])->name('fabric.stock');

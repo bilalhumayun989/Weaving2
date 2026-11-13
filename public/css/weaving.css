@@ -103,3 +103,43 @@
 .yarn-reverse-form{display:flex;flex-direction:column;gap:6px}
 .yarn-reverse-form input{min-height:34px;font-size:12px;padding:6px 9px;width:100%;min-width:160px}
 .yarn-reverse-form button{align-self:flex-start}
+
+/* ═══════════════════════════════════════════
+   FABRIC CHECKING PAGE COMPONENTS
+   ═══════════════════════════════════════════ */
+
+/* ── Factory metres section header ── */
+.fabric-factories-section{margin-top:6px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.fabric-factories-header{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;background:#f7fbfa;border-bottom:1px solid var(--line)}
+.fabric-factories-label{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:680;color:var(--ink)}
+
+/* ── Individual factory row ── */
+.factory-row{display:grid;grid-template-columns:1fr 1fr auto;gap:14px;align-items:end;padding:16px 16px 0}
+.factory-row:last-of-type{padding-bottom:16px}
+.factory-row-action{display:flex;align-items:flex-end;padding-bottom:1px}
+.factory-row-action .btn{min-height:42px;padding:0 12px;color:#9a3939;border-color:#e5c5c5}
+.factory-row-action .btn:hover{background:#fff0f0;border-color:#e5c5c5}
+
+/* ── Combined total strip ── */
+.fabric-combined-total{display:flex;align-items:center;gap:7px;padding:12px 16px;background:#edf7f4;border-top:1px solid #c5dcd8;font-size:13px;color:#1b5a52}
+.fabric-combined-total strong{font-size:15px;font-weight:780;letter-spacing:-.02em}
+
+/* ── Recent reports table helpers ── */
+.fabric-factory-breakdown{display:flex;align-items:center;gap:8px;padding:2px 0}
+.fabric-factory-name{font-size:12px;font-weight:650;color:var(--ink)}
+.fabric-factory-metres{font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums}
+.fabric-factory-breakdown+.fabric-factory-breakdown{border-top:1px dashed var(--line);margin-top:3px;padding-top:5px}
+
+/* ── Cancel form in reports table ── */
+.fabric-cancel-form{display:flex;flex-direction:column;gap:6px}
+.fabric-cancel-form input{font-size:12px;min-height:34px;padding:6px 9px;min-width:160px}
+.fabric-cancel-form button{align-self:flex-start}
+
+/* ── Stock page filter bar ── */
+.stock-filter-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+
+/* ── Responsive factory rows ── */
+@media(max-width:700px){
+  .factory-row{grid-template-columns:1fr;gap:10px;padding:12px}
+  .fabric-factories-header{flex-direction:column;align-items:flex-start;gap:10px}
+}

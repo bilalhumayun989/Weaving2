@@ -15,6 +15,25 @@
   </div>
 </div>
 
+@php($printDetails=$contract->print_details ?? [])
+@php($businessRows=[
+  'Sales Tax Registration No.'=>$printDetails['sales_tax_registration_no']??null,
+  'NTN'=>$printDetails['ntn']??null,
+  'Broker'=>$printDetails['broker']??null,
+  'Grey Demand No.'=>$printDetails['grey_demand_no']??null,
+  'Weave Quality'=>$printDetails['weave_quality']??null,
+  'Invoice Quality'=>$printDetails['invoice_quality']??null,
+  'Specification'=>$printDetails['specification']??null,
+  'Warp Component'=>$printDetails['warp_component']??null,
+  'Weft Component'=>$printDetails['weft_component']??null,
+  'HS Code / Description'=>$printDetails['hs_code_description']??null,
+  'Last Date of Delivery'=>$printDetails['last_delivery_date']??null,
+])
+@if(collect($businessRows)->contains(fn($value)=>$value!==null && $value!==''))
+<h2>Contract and Fabric Details</h2>
+<table><tbody>@foreach($businessRows as $label=>$value)@if($value!==null && $value!=='')<tr><td><strong>{{ $label }}</strong></td><td>{{ $value }}</td></tr>@endif @endforeach</tbody></table>
+@endif
+
 <table>
   <thead><tr><th>Agreed Term</th><th class="right">Value</th></tr></thead>
   <tbody>
@@ -26,6 +45,32 @@
     @endif
   </tbody>
 </table>
+
+@php($fabricRows=[
+  'Broker Commission (%)'=>$printDetails['broker_commission_percent']??null,
+  'Planned Looms'=>$printDetails['planned_looms']??null,
+  'Weight per Metre (kg)'=>$printDetails['weight_per_metre_kg']??null,
+  'Selvedge'=>$printDetails['selvedge']??null,
+  'Weave'=>$printDetails['weave']??null,
+  'Count Margin'=>$printDetails['count_margin']??null,
+  'Loom Type'=>$printDetails['loom_type']??null,
+  'Stripe Size'=>$printDetails['stripe_size']??null,
+  'Process'=>$printDetails['process']??null,
+  'Payment Terms'=>$printDetails['payment_terms']??null,
+  'Packing'=>$printDetails['packing']??null,
+  'Special Remarks'=>$printDetails['special_remarks']??null,
+])
+@if(collect($fabricRows)->contains(fn($value)=>$value!==null && $value!==''))
+<h2>Fabric Specification and Commercial Terms</h2>
+<table><tbody>@foreach($fabricRows as $label=>$value)@if($value!==null && $value!=='')<tr><td><strong>{{ $label }}</strong></td><td>{{ $value }}</td></tr>@endif @endforeach</tbody></table>
+@endif
+@if(!empty($printDetails['delivery_schedule']))
+<h2>Delivery Schedule</h2>
+<table><thead><tr><th>Date</th><th class="right">Quantity</th><th>UOM</th><th>Location</th></tr></thead><tbody>
+@foreach($printDetails['delivery_schedule'] as $delivery)<tr><td>{{ $delivery['date'] }}</td><td class="right">{{ number_format((float)$delivery['quantity'],2) }}</td><td>{{ $delivery['uom']??'M' }}</td><td>{{ $delivery['location']??'' }}</td></tr>@endforeach
+</tbody></table>
+@endif
+@if(!empty($printDetails['terms_conditions']))<h2>Terms &amp; Conditions</h2><p style="white-space:pre-line">{{ $printDetails['terms_conditions'] }}</p>@endif
 
 @if($contract->type==='job_work')
 @php($parta=$contract->parta_snapshot['results'] ?? [])
@@ -41,6 +86,13 @@
 
 @if($contract->parta_snapshot)
 <p class="muted">Parta: {{ number_format($contract->parta_snapshot['inputs']['quantity_metres'],2) }} m · Reed {{ $contract->parta_snapshot['inputs']['reed'] }} · Picks {{ $contract->parta_snapshot['inputs']['picks'] }} · Width {{ $contract->parta_snapshot['inputs']['width'] }} inches. Bag weight: 100 lbs.</p>
+<h2>Warp / Weft Costing Details</h2>
+<table><thead><tr><th>Detail</th><th class="right">Warp</th><th class="right">Weft</th><th class="right">Total</th></tr></thead><tbody>
+<tr><td>Weight / Metre (lbs)</td><td class="right">{{ number_format($contract->parta_snapshot['results']['warp_lbs_per_metre'],4) }}</td><td class="right">{{ number_format($contract->parta_snapshot['results']['weft_lbs_per_metre'],4) }}</td><td class="right">{{ number_format($contract->parta_snapshot['results']['total_lbs_per_metre'],4) }}</td></tr>
+@if(($contract->parta_snapshot['inputs']['warp_yarn_rate']??null)!==null && ($contract->parta_snapshot['inputs']['weft_yarn_rate']??null)!==null)<tr><td>Yarn Rate (PKR / lb)</td><td class="right">{{ number_format($contract->parta_snapshot['inputs']['warp_yarn_rate'],2) }}</td><td class="right">{{ number_format($contract->parta_snapshot['inputs']['weft_yarn_rate'],2) }}</td><td class="right">—</td></tr>@endif
+<tr><td>Conversion / Metre (PKR)</td><td class="right">—</td><td class="right">—</td><td class="right">{{ number_format($contract->parta_snapshot['results']['conversion_per_metre'],4) }}</td></tr>
+@if(($contract->parta_snapshot['results']['estimated_fabric_rate_per_metre']??null)!==null)<tr><td>Estimated Fabric Cost / Metre (PKR)</td><td class="right">—</td><td class="right">—</td><td class="right">{{ number_format($contract->parta_snapshot['results']['estimated_fabric_rate_per_metre'],4) }}</td></tr>@endif
+</tbody></table>
 @endif
 
 @if($contract->yarn_supplier==='customer')

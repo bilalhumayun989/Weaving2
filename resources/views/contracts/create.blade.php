@@ -16,7 +16,42 @@
 <div class="field for-rate" style="display:none"><label>Agreed Fabric Sale Rate / Metre (PKR)</label><input name="rate_per_metre" id="fabricRate" type="number" min="0" step="0.0001" value="{{ old('rate_per_metre') }}"></div>
 </div>
 
-<div class="quick-modal" id="newPartyPanel" hidden><div class="quick-modal-backdrop" data-close-modal></div><section class="quick-modal-card" role="dialog" aria-modal="true" aria-labelledby="partyModalTitle"><button class="quick-modal-close" type="button" data-close-modal aria-label="Close">×</button><div class="kicker">New Customer</div><h2 id="partyModalTitle">Create Customer</h2><p class="tagline">This creates a customer-only account and selects it on this contract.</p><div class="form-grid modal-fields"><div class="field span-2"><label for="newPartyName">Customer Name</label><input id="newPartyName" maxlength="150" placeholder="Customer name"></div><div class="field span-2"><label for="newPartyPhone">Phone (optional)</label><input id="newPartyPhone" maxlength="60"></div></div><div class="quick-modal-actions"><button class="btn" type="button" id="saveNewParty">Create Customer</button></div><div id="newPartyError" class="hint" role="alert"></div></section></div>
+<section class="parta-section" style="margin-top:18px">
+  <h2>Additional Contract Print Details <span class="muted small">(optional)</span></h2>
+  <p class="hint">Add the extra business and fabric details from your printed contract sheet. These do not change the existing contract rates or Parta calculations.</p>
+  <div class="form-grid" style="margin-top:14px">
+    <div class="field"><label>Sales Tax Registration No.</label><input name="print_details[sales_tax_registration_no]" maxlength="100" value="{{ old('print_details.sales_tax_registration_no') }}"></div>
+    <div class="field"><label>NTN</label><input name="print_details[ntn]" maxlength="100" value="{{ old('print_details.ntn') }}"></div>
+    <div class="field"><label>Broker</label><input name="print_details[broker]" maxlength="150" value="{{ old('print_details.broker') }}"></div>
+    <div class="field"><label>Grey Demand No.</label><input name="print_details[grey_demand_no]" maxlength="100" value="{{ old('print_details.grey_demand_no') }}"></div>
+    <div class="field"><label>Weave Quality</label><input name="print_details[weave_quality]" maxlength="200" value="{{ old('print_details.weave_quality') }}"></div>
+    <div class="field"><label>Invoice Quality</label><input name="print_details[invoice_quality]" maxlength="200" value="{{ old('print_details.invoice_quality') }}"></div>
+    <div class="field"><label>Warp Component</label><input name="print_details[warp_component]" maxlength="255" value="{{ old('print_details.warp_component') }}"></div>
+    <div class="field"><label>Weft Component</label><input name="print_details[weft_component]" maxlength="255" value="{{ old('print_details.weft_component') }}"></div>
+    <div class="field span-2"><label>Specification</label><textarea name="print_details[specification]" maxlength="2000">{{ old('print_details.specification') }}</textarea></div>
+    <div class="field span-2"><label>HS Code / Description</label><textarea name="print_details[hs_code_description]" maxlength="500">{{ old('print_details.hs_code_description') }}</textarea></div>
+    <div class="field"><label>Last Date of Delivery</label><input type="date" name="print_details[last_delivery_date]" value="{{ old('print_details.last_delivery_date') }}"></div>
+    <div class="field"><label>Broker Commission (%)</label><input type="number" min="0" max="100" step="0.01" name="print_details[broker_commission_percent]" value="{{ old('print_details.broker_commission_percent') }}"></div>
+    <div class="field"><label>Planned Looms</label><input type="number" min="0" step="1" name="print_details[planned_looms]" value="{{ old('print_details.planned_looms') }}"></div>
+    <div class="field"><label>Weight per Metre (kg)</label><input type="number" min="0" step="0.0001" name="print_details[weight_per_metre_kg]" value="{{ old('print_details.weight_per_metre_kg') }}"></div>
+    <div class="field"><label>Selvedge</label><input name="print_details[selvedge]" maxlength="150" value="{{ old('print_details.selvedge') }}"></div>
+    <div class="field"><label>Weave</label><input name="print_details[weave]" maxlength="150" value="{{ old('print_details.weave') }}"></div>
+    <div class="field"><label>Count Margin</label><input name="print_details[count_margin]" maxlength="150" value="{{ old('print_details.count_margin') }}"></div>
+    <div class="field"><label>Loom Type</label><input name="print_details[loom_type]" maxlength="150" value="{{ old('print_details.loom_type') }}"></div>
+    <div class="field"><label>Stripe Size</label><input name="print_details[stripe_size]" maxlength="150" value="{{ old('print_details.stripe_size') }}"></div>
+    <div class="field"><label>Process</label><input name="print_details[process]" maxlength="200" value="{{ old('print_details.process') }}"></div>
+    <div class="field"><label>Payment Terms</label><input name="print_details[payment_terms]" maxlength="500" value="{{ old('print_details.payment_terms') }}"></div>
+    <div class="field"><label>Packing</label><input name="print_details[packing]" maxlength="500" value="{{ old('print_details.packing') }}"></div>
+    <div class="field span-2"><label>Special Remarks</label><textarea name="print_details[special_remarks]" maxlength="2500">{{ old('print_details.special_remarks') }}</textarea></div>
+    <div class="field span-2"><label>Terms &amp; Conditions</label><textarea name="print_details[terms_conditions]" maxlength="5000">{{ old('print_details.terms_conditions') }}</textarea></div>
+  </div>
+  <div class="field" style="margin-top:14px"><label>Delivery Schedule</label>
+    <div class="table-wrap"><table><thead><tr><th>Date</th><th>Quantity</th><th>UOM</th><th>Location</th><th></th></tr></thead><tbody id="deliveryScheduleRows">
+      @foreach(old('delivery_schedule',[[]]) as $index=>$delivery)<tr data-delivery-row><td><input type="date" name="delivery_schedule[{{ $index }}][date]" value="{{ $delivery['date'] ?? '' }}"></td><td><input type="number" min="0.01" step="0.01" name="delivery_schedule[{{ $index }}][quantity]" value="{{ $delivery['quantity'] ?? '' }}"></td><td><input name="delivery_schedule[{{ $index }}][uom]" maxlength="20" value="{{ $delivery['uom'] ?? 'M' }}"></td><td><input name="delivery_schedule[{{ $index }}][location]" maxlength="150" value="{{ $delivery['location'] ?? '' }}"></td><td><button type="button" class="btn secondary small remove-delivery-row" disabled>Remove</button></td></tr>@endforeach
+    </tbody></table></div>
+    <button type="button" class="btn secondary small" id="addDeliverySchedule">+ Add Delivery Date</button>
+  </div>
+</section><div class="quick-modal" id="newPartyPanel" hidden><div class="quick-modal-backdrop" data-close-modal></div><section class="quick-modal-card" role="dialog" aria-modal="true" aria-labelledby="partyModalTitle"><button class="quick-modal-close" type="button" data-close-modal aria-label="Close">×</button><div class="kicker">New Customer</div><h2 id="partyModalTitle">Create Customer</h2><p class="tagline">This creates a customer-only account and selects it on this contract.</p><div class="form-grid modal-fields"><div class="field span-2"><label for="newPartyName">Customer Name</label><input id="newPartyName" maxlength="150" placeholder="Customer name"></div><div class="field span-2"><label for="newPartyPhone">Phone (optional)</label><input id="newPartyPhone" maxlength="60"></div></div><div class="quick-modal-actions"><button class="btn" type="button" id="saveNewParty">Create Customer</button></div><div id="newPartyError" class="hint" role="alert"></div></section></div>
 
 <div class="quick-modal" id="newQualityPanel" hidden><div class="quick-modal-backdrop" data-close-modal></div><section class="quick-modal-card" role="dialog" aria-modal="true" aria-labelledby="qualityModalTitle"><button class="quick-modal-close" type="button" data-close-modal aria-label="Close">×</button><div class="kicker">New Fabric Specification</div><h2 id="qualityModalTitle">Create Fabric Quality</h2><p class="tagline">Save the quality here and it will be selected on this contract.</p><div class="form-grid modal-fields"><div class="field span-2"><label for="newQualityName">Quality Name</label><input id="newQualityName" maxlength="150" placeholder="e.g. Grey 60x60"></div><div class="field"><label for="newQualityPicks">Picks</label><input id="newQualityPicks" type="number" min="0.01" max="10000" step="0.01" placeholder="e.g. 60"></div><div class="field"><label for="newQualityWarp">Warp Count</label><input id="newQualityWarp" maxlength="80" placeholder="e.g. 30s"></div><div class="field"><label for="newQualityWeft">Weft Count</label><input id="newQualityWeft" maxlength="80" placeholder="e.g. 20s"></div><div class="field"><label for="newQualityWidth">Width</label><input id="newQualityWidth" maxlength="80" placeholder="e.g. 63 inches"></div></div><div class="quick-modal-actions"><button class="btn" type="button" id="saveNewQuality">Create Quality</button></div><div id="newQualityError" class="hint" role="alert"></div></section></div>
 
@@ -137,7 +172,21 @@
       const q=data.quality,label=q.name+' ('+(q.picks??'?')+' picks)',option=new Option(label,q.id,true,true);option.dataset.picks=q.picks??'';option.dataset.warp=q.warp_count??'';option.dataset.weft=q.weft_count??'';option.dataset.width=q.width??'';quality.add(option);defaults[q.id]={picks:q.picks,warp_count:q.warp_count,weft_count:q.weft_count,width:q.width};selectQuality(true);closeModal(qualityPanel);['newQualityName','newQualityPicks','newQualityWarp','newQualityWeft','newQualityWidth'].forEach(id=>document.getElementById(id).value='');
     }catch(e){error.textContent=e.message;}finally{button.disabled=false;}
   });
-  quality.addEventListener('change',()=>selectQuality(true));type.addEventListener('change',toggle);yarnSupplier.addEventListener('change',toggle);
+  const scheduleRows=document.getElementById('deliveryScheduleRows');
+  const renumberSchedule=()=>[...scheduleRows.querySelectorAll('[data-delivery-row]')].forEach((row,index,rows)=>{
+    row.querySelectorAll('input').forEach(input=>input.name=input.name.replace(/delivery_schedule\[\d+\]/,`delivery_schedule[${index}]`));
+    row.querySelector('.remove-delivery-row').disabled=rows.length===1;
+  });
+  document.getElementById('addDeliverySchedule').addEventListener('click',()=>{
+    const row=scheduleRows.querySelector('[data-delivery-row]').cloneNode(true);
+    row.querySelectorAll('input').forEach(input=>input.value=input.name.endsWith('[uom]')?'M':'');
+    scheduleRows.append(row);renumberSchedule();
+  });
+  scheduleRows.addEventListener('click',event=>{
+    if(!event.target.matches('.remove-delivery-row'))return;
+    if(scheduleRows.querySelectorAll('[data-delivery-row]').length>1){event.target.closest('[data-delivery-row]').remove();renumberSchedule();}
+  });
+  renumberSchedule();  quality.addEventListener('change',()=>selectQuality(true));type.addEventListener('change',toggle);yarnSupplier.addEventListener('change',toggle);
   Object.values(fields).forEach(e=>e.addEventListener('input',calculate));
   selectQuality(false);toggle();
 })();

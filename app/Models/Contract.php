@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Contract extends Model
 {
     protected $guarded = [];
-    protected $casts = ['parta_snapshot' => 'array'];
+    protected $casts = ['parta_snapshot' => 'array', 'print_details' => 'array'];
     public function factory() { return $this->belongsTo(Factory::class); }
     public function coversFactory(int $factoryId): bool
     {

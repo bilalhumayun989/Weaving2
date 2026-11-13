@@ -44,7 +44,52 @@ class ContractController extends Controller
             'parta_weft_yarn_rate'=>'nullable|numeric|min:0',
             'notes'=>'nullable|string|max:2500', 'parta_details'=>'nullable|string|max:10000',
             'yarn_supplier'=>'nullable|in:customer,factory',
+            'print_details.sales_tax_registration_no'=>'nullable|string|max:100',
+            'print_details.broker'=>'nullable|string|max:150',
+            'print_details.ntn'=>'nullable|string|max:100',
+            'print_details.grey_demand_no'=>'nullable|string|max:100',
+            'print_details.weave_quality'=>'nullable|string|max:200',
+            'print_details.invoice_quality'=>'nullable|string|max:200',
+            'print_details.specification'=>'nullable|string|max:2000',
+            'print_details.hs_code_description'=>'nullable|string|max:500',
+            'print_details.last_delivery_date'=>'nullable|date',
+            'print_details.broker_commission_percent'=>'nullable|numeric|min:0|max:100',
+            'print_details.planned_looms'=>'nullable|integer|min:0|max:100000',
+            'print_details.weight_per_metre_kg'=>'nullable|numeric|min:0|max:1000',
+            'print_details.warp_component'=>'nullable|string|max:255',
+            'print_details.weft_component'=>'nullable|string|max:255',
+            'print_details.selvedge'=>'nullable|string|max:150',
+            'print_details.weave'=>'nullable|string|max:150',
+            'print_details.count_margin'=>'nullable|string|max:150',
+            'print_details.loom_type'=>'nullable|string|max:150',
+            'print_details.stripe_size'=>'nullable|string|max:150',
+            'print_details.process'=>'nullable|string|max:200',
+            'print_details.payment_terms'=>'nullable|string|max:500',
+            'print_details.packing'=>'nullable|string|max:500',
+            'print_details.special_remarks'=>'nullable|string|max:2500',
+            'print_details.terms_conditions'=>'nullable|string|max:5000',
+            'delivery_schedule'=>'nullable|array|max:30',
+            'delivery_schedule.*.date'=>'nullable|date',
+            'delivery_schedule.*.quantity'=>'nullable|numeric|gt:0',
+            'delivery_schedule.*.uom'=>'nullable|string|max:20',
+            'delivery_schedule.*.location'=>'nullable|string|max:150',
         ]);
+        $schedule=[];
+        foreach ($d['delivery_schedule'] ?? [] as $i=>$row) {
+            $hasValues=collect($row)->contains(fn($value)=>$value!==null && trim((string)$value)!=='');
+            if (!$hasValues) continue;
+            if (empty($row['date']) || empty($row['quantity'])) {
+                throw ValidationException::withMessages(["delivery_schedule.$i.date"=>'Each delivery schedule row needs both a date and quantity.']);
+            }
+            $schedule[]=[
+                'date'=>$row['date'],'quantity'=>(float)$row['quantity'],
+                'uom'=>trim($row['uom']??'M') ?: 'M','location'=>trim($row['location']??''),
+            ];
+        }
+        $printDetails=$d['print_details']??[];
+        $printDetails['delivery_schedule']=$schedule;
+        $d['print_details']=$printDetails;
+        unset($d['delivery_schedule']);
         $factoryScope=$d['factory_id']==='all'?'all':'single';
         if ($factoryScope==='single') Factory::findOrFail($d['factory_id']);
         else $d['factory_id']=Factory::orderBy('id')->value('id') ?? throw ValidationException::withMessages(['factory_id'=>'Create at least one factory before using All Factories.']);

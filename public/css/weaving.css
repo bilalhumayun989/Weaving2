@@ -85,3 +85,21 @@
 
 /* ── Dmc amber (new colour for show page) ── */
 .dmc-icon--amber{background:#fff4e0;color:#9a6300}
+
+/* ═══════════════════════════════════════════
+   YARN PAGE COMPONENTS
+   ═══════════════════════════════════════════ */
+
+/* ── Entry mode notice banner ── */
+.yarn-mode-notice{display:flex;align-items:center;gap:9px;padding:12px 15px;border-radius:9px;border:1px solid #c5dcd8;background:#edf7f4;color:#1b5a52;font-size:13px;line-height:1.5}
+.yarn-mode-notice--customer{background:#fff9ec;border-color:#f0dfa0;color:#7a5500}
+.yarn-mode-notice svg{flex-shrink:0}
+
+/* ── Remaining balance badge in purchases table ── */
+.yarn-remaining-badge{display:inline-block;margin-top:4px;font-size:11px;font-weight:700;color:#1a6e42;background:#e3f5ec;border-radius:99px;padding:2px 8px}
+
+/* ── Action cell layout in purchases table ── */
+.yarn-action-cell{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.yarn-reverse-form{display:flex;flex-direction:column;gap:6px}
+.yarn-reverse-form input{min-height:34px;font-size:12px;padding:6px 9px;width:100%;min-width:160px}
+.yarn-reverse-form button{align-self:flex-start}

@@ -1,6 +1,6 @@
 <?php
 namespace App\Http\Controllers;
-use App\Models\{Bill, KachiParchi, YarnPurchase, Party, Contract};
+use App\Models\{Bill, KachiParchi, YarnPurchase, YarnReceipt, Party, Contract};
 use App\Services\LedgerService;
 class PrintController extends Controller
 {
@@ -28,11 +28,11 @@ class PrintController extends Controller
     public function contract(Contract $contract)
     {
         $contract->load(['factory','party','quality']);
-        $receipts=$contract->receipts()->orderBy('received_on')->get();
+        $receipts=$contract->receipts()->with('yarnQuality')->orderBy('received_on')->get();
         $purchases=$contract->yarnPurchases()->with(['party','yarnQuality'])->whereNull('voided_at')->orderBy('purchased_on')->get();
-        $factorySuppliesYarn=$contract->yarn_supplier==='factory';
-        $warpReceived=(float)$receipts->where('yarn_type','warp')->sum('bags')+($factorySuppliesYarn?(float)$purchases->where('yarn_type','warp')->sum('bags'):0);
-        $weftReceived=(float)$receipts->where('yarn_type','weft')->sum('bags')+($factorySuppliesYarn?(float)$purchases->where('yarn_type','weft')->sum('bags'):0);
+        $customerYarn=$contract->yarn_supplier==='customer';
+        $warpReceived=$customerYarn?(float)$receipts->where('yarn_type','warp')->sum('bags'):(float)$purchases->where('yarn_type','warp')->sum('bags');
+        $weftReceived=$customerYarn?(float)$receipts->where('yarn_type','weft')->sum('bags'):(float)$purchases->where('yarn_type','weft')->sum('bags');
         return view('print.contract',compact('contract','receipts','purchases','warpReceived','weftReceived')+['printTitle'=>'Contract']);
     }
     public function ledger(Party $party,LedgerService $service)

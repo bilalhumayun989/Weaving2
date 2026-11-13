@@ -1,6 +1,6 @@
 <?php
 namespace App\Http\Controllers;
-use App\Models\{Party, Thaan, YarnPurchase, Bill,Factory};
+use App\Models\{Party, Thaan, YarnPurchase, YarnReceipt, Bill,Factory};
 use App\Services\LedgerService;
 use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\Builder;
@@ -49,7 +49,14 @@ class ExportController extends Controller
             return $this->csv('yarn-purchases.csv',['Date','Factory','Supplier','Invoice','Yarn','Bags','Rate','Total','Contract','Payment Terms (days)','Due Date','Broker / Terms Note','Status'],
                 YarnPurchase::with(['factory','party','contract','yarnQuality'])->orderBy('purchased_on')->get()->map(fn($p)=>[$p->purchased_on,$p->factory_scope==='all'?'All Factories':$p->factory->name,$p->party->name,$p->invoice_no,$p->yarnQuality?->name??$p->yarn_description,$p->bags,$p->rate_per_bag,$p->total,$p->contract?->reference,$p->payment_terms_days,$p->payment_due_on,$p->payment_terms_note,$p->voided_at?'Reversed':'Active']));
         }
-        return $this->csv('fabric-sales-conversion-bills.csv',['Date','Bill','Factory','Party','Type','Status','Metres','Rate','Total'],
+        if($kind==='customer-yarn') {
+            return $this->csv('customer-yarn-receipts.csv',['Date','Factory Scope','Contract','Customer','Yarn Quality','Warp / Weft','Bags','Cones per Bag','Rate / lb','Indicative Rate / Bag','Reference','Notes'],
+                YarnReceipt::with(['factory','contract.party','contract.factory','yarnQuality'])->orderBy('received_on')->get()->map(fn($r)=>[
+                    $r->received_on,($r->factory_scope??'single')==='all'?'All Factories':($r->factory?->name??$r->contract->factory->name),
+                    $r->contract->reference,$r->contract->party->name,$r->yarnQuality?->name,$r->yarn_type,$r->bags,$r->cones_per_bag,
+                    $r->rate_per_lb,$r->rate_per_bag,$r->reference,$r->notes,
+                ]));
+        }        return $this->csv('fabric-sales-conversion-bills.csv',['Date','Bill','Factory','Party','Type','Status','Metres','Rate','Total'],
             Bill::with('factory','party')->orderBy('billed_on')->get()->map(fn($b)=>[$b->billed_on,$b->reference,$b->factory->name,$b->party->name,$b->type,$b->billing_status,$b->accepted_metres,$b->rate,$b->total]));
     }
 

@@ -111,13 +111,13 @@ class ContractController extends Controller
         $provisionalSales=(float)$salesBills->where('billing_status','provisional')->sum('total');
         $finalSales=(float)$salesBills->where('billing_status','final')->sum('total');
         $voidSales=(float)$salesBills->where('billing_status','void')->sum('total');
-        $receipts = $contract->receipts()->latest('received_on')->get();
+        $receipts = $contract->receipts()->with(['yarnQuality','factory'])->latest('received_on')->get();
         $purchases = $contract->yarnPurchases()->with(['party','yarnQuality'])->withSum(['payments as linked_paid_total'=>fn($q)=>$q->whereNull('voided_at')],'amount')->whereNull('voided_at')->latest('purchased_on')->get();
         $warpRequired=(float)($contract->parta_snapshot['results']['warp_bags'] ?? 0);
         $weftRequired=(float)($contract->parta_snapshot['results']['weft_bags'] ?? 0);
-        $factorySuppliesYarn=$contract->yarn_supplier==='factory';
-        $warpReceived=(float)$receipts->where('yarn_type','warp')->sum('bags')+($factorySuppliesYarn?(float)$purchases->where('yarn_type','warp')->sum('bags'):0);
-        $weftReceived=(float)$receipts->where('yarn_type','weft')->sum('bags')+($factorySuppliesYarn?(float)$purchases->where('yarn_type','weft')->sum('bags'):0);
+        $customerYarn=$contract->yarn_supplier==='customer';
+        $warpReceived=$customerYarn?(float)$receipts->where('yarn_type','warp')->sum('bags'):(float)$purchases->where('yarn_type','warp')->sum('bags');
+        $weftReceived=$customerYarn?(float)$receipts->where('yarn_type','weft')->sum('bags'):(float)$purchases->where('yarn_type','weft')->sum('bags');
         $received=$warpReceived+$weftReceived+(float)$receipts->whereNull('yarn_type')->sum('bags');
         $remaining=max(0,round((float)$contract->required_bags-$received,2));
         $warpRemaining=max(0,round($warpRequired-$warpReceived,2));
@@ -129,32 +129,7 @@ class ContractController extends Controller
     }
     public function receiveBags(Request $request, Contract $contract)
     {
-        if ($contract->type !== 'job_work' || $contract->status !== 'active') abort(422, 'Bag receipts are only allowed on active job-work contracts.');
-        if ($contract->yarn_supplier !== 'customer') {
-            throw ValidationException::withMessages(['bags'=>'This contract uses factory-supplied yarn. Customer bag receipts are not allowed.']);
-        }
-        $d = $request->validate(['received_on'=>'required|date','yarn_type'=>'required|in:warp,weft','bags'=>'required|numeric|gt:0|decimal:0,2',
-            'reference'=>'nullable|string|max:150','notes'=>'nullable|string|max:1000',
-            'cones_per_bag'=>'nullable|integer|min:1|max:200']);
-        $receipt=DB::transaction(function () use ($contract,$d) {
-            $locked=Contract::whereKey($contract->id)->lockForUpdate()->firstOrFail();
-            if ($locked->type!=='job_work' || $locked->status!=='active' || $locked->yarn_supplier!=='customer') {
-                throw ValidationException::withMessages(['bags'=>'Customer bag receipts are not allowed for this contract.']);
-            }
-            $parta=$locked->parta_snapshot['results'] ?? [];
-            $required=(float)($parta[$d['yarn_type'].'_bags'] ?? 0);
-            $alreadyType=(float)$locked->receipts()->where('yarn_type',$d['yarn_type'])->sum('bags');
-            $alreadyTotal=(float)$locked->receipts()->sum('bags');
-            $typeRemaining=max(0,round($required-$alreadyType,2));
-            $totalRemaining=max(0,round((float)$locked->required_bags-$alreadyTotal,2));
-            if ((float)$d['bags']>$typeRemaining || (float)$d['bags']>$totalRemaining) {
-                throw ValidationException::withMessages(['bags'=>'Only '.number_format(min($typeRemaining,$totalRemaining),2).' bags remain for this yarn type and contract.']);
-            }
-            $saved=$locked->receipts()->create($d);
-            AuditService::record('bags.received',$saved,['contract'=>$locked->reference,'bags'=>$saved->bags]);
-            return $saved;
-        });
-        return back()->with('success', ucfirst($d['yarn_type']).' yarn bags received from the customer.');
+        abort(410, 'Bag receipt entry has moved to Yarn Purchases. Select the contract there to record Warp or Weft bags.');
     }
     public function close(Request $request, Contract $contract)
     {

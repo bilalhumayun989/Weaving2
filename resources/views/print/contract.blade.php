@@ -45,8 +45,8 @@
 
 @if($contract->yarn_supplier==='customer')
 <h2>Customer Yarn Receipts</h2>
-<table><thead><tr><th>Date Received</th><th>Warp / Weft</th><th>Reference</th><th class="right">Bags</th><th>Notes</th></tr></thead><tbody>
-@forelse($receipts as $receipt)<tr><td>{{ $receipt->received_on }}</td><td>{{ $receipt->yarn_type?ucfirst($receipt->yarn_type):'Unclassified' }}</td><td>{{ $receipt->reference ?? '—' }}</td><td class="right">{{ number_format($receipt->bags,2) }}</td><td>{{ $receipt->notes }}</td></tr>@empty<tr><td colspan="5">No customer yarn received yet.</td></tr>@endforelse
+<table><thead><tr><th>Date Received</th><th>Warp / Weft</th><th>Delivery Reference</th><th class="right">Bags</th><th>Cones / Bag</th><th>Notes</th></tr></thead><tbody>
+@forelse($receipts as $receipt)<tr><td>{{ $receipt->received_on }}</td><td>{{ $receipt->yarn_type?ucfirst($receipt->yarn_type):'Unclassified' }}</td><td>{{ $receipt->reference ?? '-' }}</td><td class="right">{{ number_format($receipt->bags,2) }}</td><td>{{ $receipt->cones_per_bag ?? '-' }}</td><td>{{ $receipt->notes }}</td></tr>@empty<tr><td colspan="6">No customer yarn received yet.</td></tr>@endforelse
 </tbody></table>
 @else
 <h2>Supplier Yarn Deliveries</h2>

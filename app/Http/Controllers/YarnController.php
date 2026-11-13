@@ -11,7 +11,7 @@ class YarnController extends Controller
     public function index()
     {
         return view('yarn.index', [
-            'purchases' => YarnPurchase::with(['factory','party','contract'])->latest('purchased_on')->paginate(30),
+            'purchases' => YarnPurchase::with(['factory','party','contract'])->withSum(['payments as linked_paid_total'=>fn($q)=>$q->whereNull('voided_at')],'amount')->latest('purchased_on')->paginate(30),
             'factories' => Factory::orderBy('name')->get(), 'parties' => Party::whereIn('type',['supplier','both'])->orderBy('name')->get(),
             'contracts' => Contract::where('type','job_work')->where('yarn_supplier','factory')->where('status','active')->with('party')->orderByDesc('id')->get(),
         ]);
@@ -24,7 +24,8 @@ class YarnController extends Controller
             'purchased_on'=>'required|date','invoice_no'=>'nullable|string|max:100',
             'yarn_description'=>'required|string|max:255','bags'=>'required|numeric|gt:0',
             'rate_per_bag'=>'required|numeric|min:0','notes'=>'nullable|string|max:1000',
-            'cones_per_bag'=>'nullable|integer|min:1|max:200',
+            'payment_terms_days'=>'nullable|integer|min:0|max:365',
+            'payment_terms_note'=>'nullable|string|max:255',
         ]);
         $contract=isset($d['contract_id'])?Contract::findOrFail($d['contract_id']):null;
         $supplier=Party::findOrFail($d['party_id']);
@@ -33,6 +34,9 @@ class YarnController extends Controller
             return back()->withErrors(['contract_id'=>'Choose an active factory-yarn Job Work contract for this factory.'])->withInput();
         }
         $d['total'] = round((float)$d['bags'] * (float)$d['rate_per_bag'], 2);
+        $d['payment_due_on']=isset($d['payment_terms_days'])
+            ? \Illuminate\Support\Carbon::parse($d['purchased_on'])->addDays((int)$d['payment_terms_days'])->toDateString()
+            : null;
         DB::transaction(function () use ($d, $ledger, $contract) {
             if ($contract) {
                 $locked=Contract::whereKey($contract->id)->lockForUpdate()->firstOrFail();
@@ -44,7 +48,7 @@ class YarnController extends Controller
                 }
             }
             $p = YarnPurchase::create($d);
-            AuditService::record('yarn_purchase.created',$p,['bags'=>$p->bags,'total'=>$p->total]);
+            AuditService::record('yarn_purchase.created',$p,['bags'=>$p->bags,'total'=>$p->total,'payment_terms_days'=>$p->payment_terms_days,'payment_due_on'=>$p->payment_due_on]);
             if ($p->total > 0) $ledger->post($p->party_id, $p->factory_id, 'payable', $p->purchased_on,
                 'Yarn purchase: '.$p->yarn_description, 'yarn_purchase', $p->id, 0, (float)$p->total);
         });

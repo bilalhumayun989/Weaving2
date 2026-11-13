@@ -112,7 +112,7 @@ class ContractController extends Controller
         $finalSales=(float)$salesBills->where('billing_status','final')->sum('total');
         $voidSales=(float)$salesBills->where('billing_status','void')->sum('total');
         $receipts = $contract->receipts()->latest('received_on')->get();
-        $purchases = $contract->yarnPurchases()->with('party')->whereNull('voided_at')->latest('purchased_on')->get();
+        $purchases = $contract->yarnPurchases()->with('party')->withSum(['payments as linked_paid_total'=>fn($q)=>$q->whereNull('voided_at')],'amount')->whereNull('voided_at')->latest('purchased_on')->get();
         $warpRequired=(float)($contract->parta_snapshot['results']['warp_bags'] ?? 0);
         $weftRequired=(float)($contract->parta_snapshot['results']['weft_bags'] ?? 0);
         $warpReceived=(float)$receipts->where('yarn_type','warp')->sum('bags')+(float)$purchases->where('yarn_type','warp')->sum('bags');
